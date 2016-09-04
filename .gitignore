@@ -1,0 +1,17 @@
+/.idea/dictionaries/
+/.idea/tasks.xml
+/.idea/libraries/Ceylon__*.xml
+/.idea/misc.xml
+/.idea/vcs.xml
+/.idea/workspace.xml
+.atom/
+.exploded/
+.gradle/
+.packages
+build/
+classes/
+config.old
+modules/
+packages/
+pubspec.lock
+reports/

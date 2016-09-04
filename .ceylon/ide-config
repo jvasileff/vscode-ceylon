@@ -1,0 +1,6 @@
+
+[project]
+compile-jvm=true
+compile-js=false
+compile-dart=false
+system-repository=

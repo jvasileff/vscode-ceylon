@@ -1,0 +1,8 @@
+
+[defaults]
+offline=false
+flatclasspath=false
+autoexportmavendependencies=true
+
+[repositories]
+remote=aether:settings.xml

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="CEYLON_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="ceylon" name="Ceylon">
+      <configuration>
+        <option name="compileForJvm" value="true" />
+        <option name="compileToJs" value="false" />
+        <option name="compileToDart" value="false" />
+        <option name="systemRepository" value="" />
+        Do not edit, modify .config/ide-config instead
+      </configuration>
+    </facet>
+  </component>
+  <component name="NewModuleRootManager" inherit-compiler-output="false">
+    <output url="$USER_HOME$/Dropbox/Repos/jv/vscode-ceylon/modules" />
+    <output-test url="$USER_HOME$/Dropbox/Repos/jv/vscode-ceylon/modules" />
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/source" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/modules" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.collection/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.interop.java/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.language/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.common/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.langtools.classfile/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.model/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.module-resolver/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.typechecker/1.2.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.vasileff.ceylon.structures/0.0.2-1.2.3-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: io.typefox.lsapi:io.typefox.lsapi/0.3.0-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.antlr.antlr/2.7.7" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.antlr.runtime/3.4" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.antlr.stringtemplate/3.2.1" level="project" />
+  </component>
+</module>

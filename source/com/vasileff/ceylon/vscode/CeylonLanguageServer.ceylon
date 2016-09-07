@@ -71,9 +71,7 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         shared actual void didClose(DidCloseTextDocumentParams? didCloseTextDocumentParams) {}
 
-        shared actual void didOpen(DidOpenTextDocumentParams that) {
-            print("Opened uri ``that.uri``");
-        }
+        shared actual void didOpen(DidOpenTextDocumentParams that) {}
 
         shared actual void didSave(DidSaveTextDocumentParams? didSaveTextDocumentParams) {}
 

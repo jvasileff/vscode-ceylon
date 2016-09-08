@@ -4,26 +4,54 @@
     "description": "VSCode Language Client for Ceylon",
     "version": "0.0.1",
     "publisher": "JohnVasileff",
+    "license": "Apache License Version 2.0",
     "engines": {
         "vscode": "^1.4.0"
     },
     "categories": [
-        "Other"
+        "Languages"
+    ],
+    "keywords": [
+        "Ceylon"
     ],
     "activationEvents": [
-        "onCommand:extension.sayHello"
+        "onLanguage:ceylon"
     ],
     "main": "./out/src/extension",
     "contributes": {
-        "commands": [{
-            "command": "extension.sayHello",
-            "title": "Hello World"
-        }]
+        "languages": [{
+            "id": "ceylon",
+            "extensions": [
+                ".ceylon"
+            ],
+            "aliases": [
+                "Ceylon"
+            ]
+        }],
+        "configuration": {
+            "title": "Ceylon Language Server",
+            "properties": {
+                "ceylon.maxNumberOfProblems": {
+                    "type": "number",
+                    "default": 100,
+                    "description": "Controls the maximum number of problems produced by the server."
+                },
+                "ceylon.errorWord": {
+                    "type": "string",
+                    "default": "nothing",
+                    "description": "The word for which to mark all occurances as errors."
+                }
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "node ./node_modules/vscode/bin/compile",
         "compile": "node ./node_modules/vscode/bin/compile -watch -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "dependencies": {
+        "portfinder": "^0.4.0",
+        "vscode-languageclient": "2.2.1"
     },
     "devDependencies": {
         "typescript": "^1.8.5",

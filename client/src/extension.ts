@@ -1,29 +1,122 @@
 'use strict';
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+
+// Initial script copied/adapted from link below (MIT License)
+// https://github.com/georgewfraser/vscode-javac/blob/a2a6fda/lib/Main.ts
+
+import * as VSCode from 'vscode';
+import * as Path from 'path';
+import * as FS from 'fs';
+import * as PortFinder from 'portfinder';
+import * as Net from 'net';
+import * as ChildProcess from 'child_process';
+import {
+    LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, StreamInfo
+} from 'VSCode-languageclient';
+
+PortFinder.basePort = 55747;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: VSCode.ExtensionContext) {
+    console.log('Ceylon: activating');
 
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log('Congratulations, your extension "vscode-ceylon" is now active!');
+    let ceylonExecutablePath = findExecutable('ceylon');
+    console.log(`Ceylon: path ${ceylonExecutablePath}`);
 
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with  registerCommand
-    // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand('extension.sayHello', () => {
-        // The code you place here will be executed every time your command is executed
+    if (ceylonExecutablePath == null) {
+        VSCode.window.showErrorMessage("Couldn't locate ceylon in $CEYLON_HOME or $PATH");
+        return;
+    }
 
-        // Display a message box to the user
-        vscode.window.showInformationMessage('Hello World!');
-    });
+    // Options to control the language client
+    let clientOptions: LanguageClientOptions = {
+        // Register the server for ceylon documents
+        documentSelector: ['ceylon'],
+        synchronize: {
+            // Synchronize the setting section 'ceylon' to the server
+            configurationSection: 'ceylon',
+            fileEvents: [
+                VSCode.workspace.createFileSystemWatcher('**/.ceylon/config'),
+                VSCode.workspace.createFileSystemWatcher('**/*.ceylon')
+            ]
+        }
+    }
 
-    context.subscriptions.push(disposable);
+    function createServer(): Promise<StreamInfo> {
+        return new Promise((resolve, reject) => {
+            PortFinder.getPort((err, port) => {
+                console.log(`Ceylon: port ${port}`);
+                // TODO Specify repository 'remote=aether:settings.xml' for the
+                //      snapshot maven dependencies. Or, include the deps in a flat repo?
+                let args = [
+                    'run',
+                    '--auto-export-maven-dependencies',
+                    'com.vasileff.ceylon.vscode/0.0.0',
+                    port.toString()
+                ];
+
+                Net.createServer(socket => {
+                    resolve({
+                        reader: socket,
+                        writer: socket
+                    });
+                }).listen(port, () => {
+                    let options = { stdio: 'inherit', cwd: VSCode.workspace.rootPath };
+
+                    console.log("Ceylon: starting server");
+                    // Run the ceylon language server
+                    ChildProcess.execFile(ceylonExecutablePath, args, options);
+                });
+            });
+        });
+    }
+
+    // Create the language client and start the client.
+    let client = new LanguageClient('Ceylon Langauge Client', createServer, clientOptions);
+    let disposable = client.start();
+
+	// Push the disposable to the context's subscriptions so that the
+	// client can be deactivated on extension deactivation
+	context.subscriptions.push(disposable);
+}
+
+function findExecutable(binname: string) {
+	binname = correctBinname(binname);
+
+	// First search each CEYLON_HOME bin folder
+	if (process.env['CEYLON_HOME']) {
+		let workspaces = process.env['CEYLON_HOME'].split(Path.delimiter);
+		for (let i = 0; i < workspaces.length; i++) {
+			let binpath = Path.join(workspaces[i], 'bin', binname);
+			if (FS.existsSync(binpath)) {
+				return binpath;
+			}
+		}
+	}
+
+	// Then search PATH parts
+	if (process.env['PATH']) {
+		let pathparts = process.env['PATH'].split(Path.delimiter);
+		for (let i = 0; i < pathparts.length; i++) {
+			let binpath = Path.join(pathparts[i], binname);
+			if (FS.existsSync(binpath)) {
+				return binpath;
+			}
+		}
+	}
+
+	// Else return the binary name directly (this will likely always fail downstream)
+	return null;
+}
+
+function correctBinname(binname: string) {
+	if (process.platform === 'win32')
+		return binname + '.exe';
+	else
+		return binname;
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+    console.log("Ceylon: deactivating");
 }

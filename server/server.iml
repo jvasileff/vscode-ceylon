@@ -22,6 +22,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.collection/1.3.0" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.file/1.3.0" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.interop.java/1.3.0" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.language/1.3.0" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.common/1.3.0" level="project" />

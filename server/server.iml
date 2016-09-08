@@ -12,8 +12,8 @@
     </facet>
   </component>
   <component name="NewModuleRootManager" inherit-compiler-output="false">
-    <output url="$USER_HOME$/Dropbox/Repos/jv/vscode-ceylon/modules" />
-    <output-test url="$USER_HOME$/Dropbox/Repos/jv/vscode-ceylon/modules" />
+    <output url="file://$MODULE_DIR$/modules" />
+    <output-test url="file://$MODULE_DIR$/modules" />
     <exclude-output />
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/source" isTestSource="false" />

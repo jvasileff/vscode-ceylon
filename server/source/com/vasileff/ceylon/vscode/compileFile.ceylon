@@ -23,6 +23,12 @@ import com.redhat.ceylon.compiler.typechecker.io {
 import com.vasileff.ceylon.vscode.internal {
     newDiagnostic
 }
+import com.redhat.ceylon.compiler.typechecker.tree {
+    Message
+}
+import com.redhat.ceylon.compiler.typechecker.analyzer {
+    UsageWarning
+}
 
 [DiagnosticImpl*] compileFile(String textContent) {
 
@@ -57,12 +63,17 @@ import com.vasileff.ceylon.vscode.internal {
         virtualFiles = [virtualFile];
     };
 
-    return messages.take(100).collect((message)
-        =>  newDiagnostic {
-                message = message.message;
-                range = rangeForMessage(message);
-                severity = message.warning
-                    then DiagnosticSeverity.warning
-                    else DiagnosticSeverity.error;
-            });
+    return messages
+        .filter((m)
+            =>  if (is UsageWarning m)
+                then !m.suppressed
+                else true)
+        .take(100).collect((message)
+            =>  newDiagnostic {
+                    message = message.message;
+                    range = rangeForMessage(message);
+                    severity = message.warning
+                        then DiagnosticSeverity.warning
+                        else DiagnosticSeverity.error;
+                });
 }

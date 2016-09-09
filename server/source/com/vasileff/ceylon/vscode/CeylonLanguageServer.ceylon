@@ -9,7 +9,8 @@ import com.vasileff.ceylon.vscode.internal {
     JsonValue,
     log,
     runnable,
-    JsonObject
+    JsonObject,
+    newDiagnostic
 }
 
 import io.typefox.lsapi {
@@ -45,7 +46,8 @@ import io.typefox.lsapi {
     DocumentRangeFormattingParams,
     InitializeResult,
     RenameParams,
-    TextDocumentSyncKind
+    TextDocumentSyncKind,
+    DiagnosticSeverity
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
@@ -307,10 +309,22 @@ class CeylonLanguageServer() satisfies LanguageServer {
     }
 
     void compileAndPublishDiagnostics(String uri, String documentText) {
-        value diagnostics = compileFile(documentText);
-        value p = PublishDiagnosticsParamsImpl();
-        p.uri = uri;
-        p.diagnostics = JavaList(diagnostics);
-        publishDiagnostics.accept(p);
+        try {
+            value diagnostics = compileFile(documentText);
+            value p = PublishDiagnosticsParamsImpl();
+            p.uri = uri;
+            p.diagnostics =JavaList(diagnostics);
+            publishDiagnostics.accept(p);
+        }
+        catch (Exception | AssertionError e) {
+            publishDiagnostics.accept(
+                PublishDiagnosticsParamsImpl(uri, JavaList(
+                    [newDiagnostic {
+                        message = e.string;
+                        severity = DiagnosticSeverity.error;
+                    }])
+                )
+            );
+        }
     }
 }

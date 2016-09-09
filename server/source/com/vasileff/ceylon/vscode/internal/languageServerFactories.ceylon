@@ -20,7 +20,10 @@ MessageParams newMessageParams(String message, MessageType type) {
 
 shared
 DiagnosticImpl newDiagnostic(
-        String message, RangeImpl? range = null, DiagnosticSeverity? severity = null,
+        String message,
+        RangeImpl range
+            =   RangeImpl(PositionImpl(), PositionImpl()),
+        DiagnosticSeverity? severity = null,
         String? code = null) {
 
     value result = DiagnosticImpl();

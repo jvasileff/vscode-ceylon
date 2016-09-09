@@ -10,19 +10,21 @@ import com.redhat.ceylon.compiler.typechecker.tree {
     Tree,
     Node
 }
-
-import io.typefox.lsapi.impl {
-    RangeImpl
-}
-import org.antlr.runtime {
-    CommonToken
-}
 import com.vasileff.ceylon.vscode.internal {
     newRange,
     newPosition
 }
 
-RangeImpl? rangeForMessage(Message message) {
+import io.typefox.lsapi.impl {
+    RangeImpl,
+    PositionImpl
+}
+
+import org.antlr.runtime {
+    CommonToken
+}
+
+RangeImpl rangeForMessage(Message message) {
     if (exists [startLine, startColumn, endLine, endColumn]
             =   messageLocation(message)) {
         return newRange {
@@ -36,7 +38,7 @@ RangeImpl? rangeForMessage(Message message) {
             };
         };
     }
-    return null;
+    return RangeImpl(PositionImpl(), PositionImpl());
 }
 
 Integer[4]? messageLocation(Message error) {

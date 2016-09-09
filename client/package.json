@@ -40,6 +40,11 @@
                     "type": "string",
                     "default": "nothing",
                     "description": "The word for which to mark all occurances as errors."
+                },
+                "ceylon.home": {
+                    "type": "string",
+                    "default": "",
+                    "description": "The directory of the Ceylon installation to use."
                 }
             }
         }

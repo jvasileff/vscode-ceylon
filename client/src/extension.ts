@@ -24,7 +24,8 @@ export function activate(context: VSCode.ExtensionContext) {
     console.log(`Ceylon: path ${ceylonExecutablePath}`);
 
     if (ceylonExecutablePath == null) {
-        VSCode.window.showErrorMessage("Couldn't locate ceylon in $CEYLON_HOME or $PATH");
+        VSCode.window.showErrorMessage(
+            "Couldn't locate ceylon in ceylon.home, $CEYLON_HOME or $PATH");
         return;
     }
 
@@ -46,11 +47,35 @@ export function activate(context: VSCode.ExtensionContext) {
         return new Promise((resolve, reject) => {
             PortFinder.getPort((err, port) => {
                 console.log(`Ceylon: port ${port}`);
+                // make sure we can run Ceylon, and check the version.
+                ChildProcess.execFile(ceylonExecutablePath, ["--version"], null,
+                        ((error: Error, stdout, stderr) => {
+                    if (error) {
+                        VSCode.window.showErrorMessage(
+                            "Unable to verify the Ceylon version; the Ceylon " +
+                            "installation at " + ceylonExecutablePath +
+                            " may be damaged.");
+                        return;
+                    }
+                    let version = stdout.trim().substring(15);
+                    if (!version.startsWith("1.3.0")) {
+                        VSCode.window.showErrorMessage(
+                            "Unsupported Ceylon version " + version + ". " +
+                            "This version of the Ceylon Language plugin requires " +
+                            "Ceylon 1.3.0 and may not function correctly.");
+                    }
+                }));
+
                 // TODO Specify repository 'remote=aether:settings.xml' for the
                 //      snapshot maven dependencies. Or, include the deps in a flat repo?
+                let overrides = context.asAbsolutePath("overrides.xml");
+                let modules = context.asAbsolutePath("out/modules");
+
                 let args = [
                     'run',
                     '--auto-export-maven-dependencies',
+                    '--overrides', overrides,
+                    '--rep', modules,
                     'com.vasileff.ceylon.vscode/0.0.0',
                     port.toString()
                 ];
@@ -101,7 +126,16 @@ export function activate(context: VSCode.ExtensionContext) {
 function findExecutable(binname: string) {
 	binname = correctBinname(binname);
 
-	// First search each CEYLON_HOME bin folder
+    // First search ceylon.home configuration option
+    let ceylonHome = VSCode.workspace.getConfiguration("ceylon").get("home");
+    if (ceylonHome) {
+        let binpath = Path.join(ceylonHome, 'bin', binname);
+        if (FS.existsSync(binpath)) {
+            return binpath;
+        }
+    }
+
+	// Then search each CEYLON_HOME bin folder
 	if (process.env['CEYLON_HOME']) {
 		let workspaces = process.env['CEYLON_HOME'].split(Path.delimiter);
 		for (let i = 0; i < workspaces.length; i++) {

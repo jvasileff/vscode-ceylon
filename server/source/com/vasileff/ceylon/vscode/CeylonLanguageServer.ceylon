@@ -1,14 +1,14 @@
-import ceylon.collection {
-    HashMap
-}
 import ceylon.interop.java {
-    JavaList
+    JavaList,
+    CeylonMutableMap,
+    CeylonMutableSet
 }
 
 import com.vasileff.ceylon.vscode.internal {
     forceWrapJavaJson,
     JsonValue,
     log,
+    runnable,
     JsonObject
 }
 
@@ -45,22 +45,17 @@ import io.typefox.lsapi {
     DocumentRangeFormattingParams,
     InitializeResult,
     RenameParams,
-    MessageType,
-    TextDocumentSyncKind,
-    DiagnosticSeverity,
-    MarkedString
+    TextDocumentSyncKind
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
-    CompletionItemBuilder,
-    HoverBuilder
+    CompletionItemBuilder
 }
 import io.typefox.lsapi.impl {
     InitializeResultImpl,
     ServerCapabilitiesImpl,
     PublishDiagnosticsParamsImpl,
-    CompletionOptionsImpl,
-    MarkedStringImpl
+    CompletionOptionsImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -69,9 +64,6 @@ import io.typefox.lsapi.services {
     WindowService
 }
 
-import java.lang {
-    JBoolean=Boolean
-}
 import java.nio.file {
     Paths,
     Path
@@ -80,7 +72,11 @@ import java.util {
     List
 }
 import java.util.concurrent {
-    CompletableFuture
+    CompletableFuture,
+    ConcurrentHashMap
+}
+import java.util.concurrent.atomic {
+    AtomicBoolean
 }
 import java.util.\ifunction {
     Consumer
@@ -95,8 +91,11 @@ class CeylonLanguageServer() satisfies LanguageServer {
     late Path workspaceRoot;
     variable JsonValue settings = null;
 
-    value textDocuments = HashMap<String, String>();
+    value compiling = AtomicBoolean(false);
+    value typeCheckQueue = CeylonMutableSet(ConcurrentHashMap.newKeySet<String>());
+    value textDocuments = CeylonMutableMap(ConcurrentHashMap<String, String>());
 
+    suppressWarnings("unusedDeclaration")
     value ceylonSettings
         =>  if (is JsonObject settings = settings)
             then settings.getObjectOrNull("ceylon")
@@ -124,7 +123,6 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         capabilities.textDocumentSync = TextDocumentSyncKind.full;
         capabilities.completionProvider = CompletionOptionsImpl();
-        capabilities.setHoverProvider(JBoolean.true);
         result.capabilities = capabilities;
 
         return CompletableFuture.completedFuture<InitializeResult>(result);
@@ -174,10 +172,8 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         shared actual
         void didChange(DidChangeTextDocumentParams that) {
-            // FIXME will didChange ever happen before didOpen ???
-            //       what is VersionedTextDocumentIdentifier?
             textDocuments[that.textDocument.uri.string] = that.contentChanges.get(0).text;
-            performDiagnostics(that.textDocument.uri, that.contentChanges.get(0).text);
+            queueDiagnotics(that.textDocument.uri);
         }
 
         shared actual
@@ -188,11 +184,13 @@ class CeylonLanguageServer() satisfies LanguageServer {
         shared actual
         void didOpen(DidOpenTextDocumentParams that) {
             textDocuments[that.textDocument.uri.string] = that.textDocument.text;
-            performDiagnostics(that.textDocument.uri, that.textDocument.text);
+            queueDiagnotics(that.textDocument.uri);
         }
 
         shared actual
-        void didSave(DidSaveTextDocumentParams that) {}
+        void didSave(DidSaveTextDocumentParams that) {
+            queueDiagnotics(that.textDocument.uri);
+        }
 
         shared actual
         CompletableFuture<DocumentHighlight>? documentHighlight
@@ -209,14 +207,8 @@ class CeylonLanguageServer() satisfies LanguageServer {
             =>  null;
 
         shared actual
-        CompletableFuture<Hover> hover(TextDocumentPositionParams that) {
-            value lineChar = "``that.position.line``:``that.position.character``";
-            value builder = HoverBuilder();
-            builder.content(
-                MarkedStringImpl(MarkedString.plainString,
-                "You're *cursor* **position** is ```lineChar```"));
-            return CompletableFuture.completedFuture(builder.build());
-        }
+        CompletableFuture<Hover>? hover(TextDocumentPositionParams that)
+            =>  null;
 
         shared actual
         void onPublishDiagnostics(Consumer<PublishDiagnosticsParams> that)
@@ -273,7 +265,7 @@ class CeylonLanguageServer() satisfies LanguageServer {
         shared actual
         void didChangeConfiguraton(DidChangeConfigurationParams that) {
             settings = forceWrapJavaJson(that.settings);
-            textDocuments.each((uri->text) => performDiagnostics(uri, text));
+            textDocuments.each((uri->text) => queueDiagnotics(uri));
         }
 
         shared actual
@@ -284,44 +276,37 @@ class CeylonLanguageServer() satisfies LanguageServer {
             =>  null;
     };
 
-    void performDiagnostics(String uri, String documentText) {
-        // Note: Be sure to send [] to clear all diagnostics if nec. Better would be
-        //       to send a diff, if possible.
+    void queueDiagnotics(String uri) {
+        typeCheckQueue.add(uri);
+        launchCompiler();
+    }
 
-        value configuredErrorWord
-            =   ceylonSettings?.getStringOrNull("errorWord");
-
-        value errorWord
-            =   if (exists configuredErrorWord, !configuredErrorWord.empty)
-                then configuredErrorWord
-                else "nothing";
-
-        value errorWordSize
-            =   errorWord.size;
-
-        value diagnostics = JavaList(
-            documentText.lines.indexed.flatMap((i->line)
-                =>  line.inclusions(errorWord).map((col)
-                    =>  newDiagnostic {
-                            message = "Are you *sure* you want to use ```errorWord```?
-                                       (Bad idea!)";
-                            severity = DiagnosticSeverity.error;
-                            range = newRange {
-                                start = newPosition(i, col);
-                                end = newPosition(i, col + errorWordSize);
-                            };
-                        })).sequence());
-
-        if (!diagnostics.empty) {
-            logMessage.accept(newMessageParams {
-                "Whoa, you shouldn't use ``errorWord``!";
-                MessageType.error;
-            });
+    void launchCompiler() {
+        if (typeCheckQueue.empty) {
+            return;
         }
 
+        // launch a compile task if one isn't running
+        if (compiling.compareAndSet(false, true)) {
+            CompletableFuture.runAsync(runnable {
+                void run() {
+                    while (exists uri = typeCheckQueue.first) {
+                        typeCheckQueue.remove(uri);
+                        if (exists text = textDocuments[uri]) {
+                            compileAndPublishDiagnostics(uri, text);
+                        }
+                    }
+                    compiling.set(false);
+                }
+            });
+        }
+    }
+
+    void compileAndPublishDiagnostics(String uri, String documentText) {
+        value diagnostics = compileFile(documentText);
         value p = PublishDiagnosticsParamsImpl();
         p.uri = uri;
-        p.diagnostics = diagnostics;
+        p.diagnostics = JavaList(diagnostics);
         publishDiagnostics.accept(p);
     }
 }

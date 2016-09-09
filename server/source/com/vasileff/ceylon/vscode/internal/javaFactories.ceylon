@@ -3,7 +3,8 @@ import java.util.\ifunction {
     Supplier
 }
 import java.lang {
-    NullPointerException
+    NullPointerException,
+    Runnable
 }
 
 shared
@@ -18,6 +19,13 @@ Consumer<Arg> consumer<Arg>(Anything(Arg) | Anything(Arg?) f)
         given Arg satisfies Object => object
         satisfies Consumer<Arg> {
     accept = maybeFun(f);
+};
+
+shared
+Runnable runnable(Anything() run) =>
+        let (outerRun = run) object
+        satisfies Runnable {
+    run = outerRun;
 };
 
 Result(Arg?) maybeFun<Result, Arg>(Result(Arg?) | Result(Arg) f)

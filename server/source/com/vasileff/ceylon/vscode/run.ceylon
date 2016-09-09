@@ -1,5 +1,6 @@
 import com.vasileff.ceylon.vscode.internal {
-    log
+    log,
+    consumer
 }
 
 import io.typefox.lsapi {

@@ -55,12 +55,13 @@ Integer[4]? messageLocation(Message error) {
             endColumn = re.charPositionInLine;
         }
         else if (is CommonToken token = re.token) {
-            // TODO if eof on an empty line, mark the error on the previous line instead.
+            // TODO if eof on an empty line, try to mark the error on the previous
+            //      line instead? But then, that line might be empty too.
             value eofAdjust = (token.type == CeylonParser.eof) then -1 else 0;
             startLine = token.line;
-            startColumn = token.charPositionInLine + eofAdjust;
+            startColumn = largest(0, token.charPositionInLine + eofAdjust);
             endLine = token.line;
-            endColumn = startColumn + token.stopIndex - token.startIndex + eofAdjust;
+            endColumn = startColumn + token.stopIndex - token.startIndex;
         }
         else {
             return null;

@@ -290,13 +290,17 @@ class CeylonLanguageServer() satisfies LanguageServer {
         if (compiling.compareAndSet(false, true)) {
             CompletableFuture.runAsync(runnable {
                 void run() {
-                    while (exists uri = typeCheckQueue.first) {
-                        typeCheckQueue.remove(uri);
-                        if (exists text = textDocuments[uri]) {
-                            compileAndPublishDiagnostics(uri, text);
+                    try {
+                        while (exists uri = typeCheckQueue.first) {
+                            typeCheckQueue.remove(uri);
+                            if (exists text = textDocuments[uri]) {
+                                compileAndPublishDiagnostics(uri, text);
+                            }
                         }
                     }
-                    compiling.set(false);
+                    finally {
+                        compiling.set(false);
+                    }
                 }
             });
         }

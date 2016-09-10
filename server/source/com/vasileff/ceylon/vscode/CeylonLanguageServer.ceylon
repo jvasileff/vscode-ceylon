@@ -48,7 +48,8 @@ import io.typefox.lsapi {
     InitializeResult,
     RenameParams,
     TextDocumentSyncKind,
-    DiagnosticSeverity
+    DiagnosticSeverity,
+    Range
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
@@ -123,7 +124,7 @@ class CeylonLanguageServer() satisfies LanguageServer {
         value result = InitializeResultImpl();
         value capabilities = ServerCapabilitiesImpl();
 
-        capabilities.textDocumentSync = TextDocumentSyncKind.full;
+        capabilities.textDocumentSync = TextDocumentSyncKind.incremental;
         capabilities.completionProvider = CompletionOptionsImpl();
         result.capabilities = capabilities;
 
@@ -174,8 +175,24 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         shared actual
         void didChange(DidChangeTextDocumentParams that) {
-            textDocuments[that.textDocument.uri.string] = that.contentChanges.get(0).text;
-            queueDiagnotics(that.textDocument.uri);
+            value uri = that.textDocument.uri;
+            value existingText = textDocuments[uri];
+            if (!exists existingText) {
+                log.error("did not find changed document ``uri``");
+                return;
+            }
+            variable value newText = existingText;
+            for (change in that.contentChanges) {
+                switch (range = change.range)
+                case (is Null) {
+                    newText = change.text;
+                }
+                else {
+                    newText = replaceRange(newText, range, change.text);
+                }
+            }
+            textDocuments[uri] = newText;
+            queueDiagnotics(uri);
         }
 
         shared actual
@@ -334,4 +351,55 @@ class CeylonLanguageServer() satisfies LanguageServer {
             );
         }
     }
+}
+
+String replaceRange(String text, Range range, String replacementText) {
+    // lines are 0 indexed, characters are 1 indexed
+
+    value sb = StringBuilder();
+    variable value lineNo = 0;
+    value nextLine = text.lines.iterator().next;
+
+    // copy lines before the change
+    while (lineNo < range.start.line, is String line = nextLine()) {
+        lineNo++;
+        sb.append(line);
+        sb.appendCharacter('\n');
+    }
+
+    // copy the leading portion of the line at the start of the range
+    value partialStartLine
+        =   switch (line = nextLine())
+            case (is Finished) "" else line;
+    lineNo++;
+    sb.append(partialStartLine[0:range.start.character]);
+
+    // append the replacement
+    sb.append(replacementText);
+
+    // copy the trailing portion of the line at the end of the range
+    String partialEndLine;
+    if (range.start.line == range.end.line) {
+        partialEndLine = partialStartLine;
+    }
+    else {
+        // burn discarded lines
+        while (lineNo < range.end.line) {
+            nextLine();
+            lineNo ++;
+        }
+        partialEndLine
+            =   switch (line = nextLine())
+                case (is Finished) "" else line;
+        lineNo++;
+    }
+    sb.append(partialEndLine[range.end.character...]);
+
+    // copy lines after the change
+    while (!is Finished line = nextLine()) {
+        sb.appendCharacter('\n');
+        sb.append(line);
+    }
+    log.debug(() => "\n'``sb.string``'");
+    return sb.string;
 }

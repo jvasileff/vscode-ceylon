@@ -3,8 +3,8 @@
 offline=false
 flatclasspath=false
 autoexportmavendependencies=true
-overrides=../client/overrides.xml
 
 [repositories]
+lookup=../client/lib
 remote=aether:settings.xml
 output=../client/out/modules

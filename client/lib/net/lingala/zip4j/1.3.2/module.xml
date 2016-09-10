@@ -1,0 +1,7 @@
+<module xmlns="urn:jboss:module:1.1" name="net.lingala.zip4j" slot="1.3.2">
+    <resources>
+        <resource-root path="net.lingala.zip4j-1.3.2.jar"/>
+    </resources>
+    <dependencies>
+    </dependencies>
+</module>

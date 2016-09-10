@@ -68,13 +68,13 @@ export function activate(context: VSCode.ExtensionContext) {
 
                 // TODO Specify repository 'remote=aether:settings.xml' for the
                 //      snapshot maven dependencies. Or, include the deps in a flat repo?
-                let overrides = context.asAbsolutePath("overrides.xml");
+                let lib = context.asAbsolutePath("lib");
                 let modules = context.asAbsolutePath("out/modules");
 
                 let args = [
                     'run',
                     '--auto-export-maven-dependencies',
-                    '--overrides', overrides,
+                    '--rep', lib,
                     '--rep', modules,
                     'com.vasileff.ceylon.vscode/0.0.0',
                     port.toString()

@@ -31,20 +31,18 @@
         "configuration": {
             "title": "Ceylon Language Server",
             "properties": {
-                "ceylon.maxNumberOfProblems": {
-                    "type": "number",
-                    "default": 100,
-                    "description": "Controls the maximum number of problems produced by the server."
-                },
-                "ceylon.errorWord": {
-                    "type": "string",
-                    "default": "nothing",
-                    "description": "The word for which to mark all occurances as errors."
-                },
                 "ceylon.home": {
                     "type": "string",
                     "default": "",
                     "description": "The directory of the Ceylon installation to use."
+                },
+                "ceylon.serverLogPriority": {
+                    "type": "string",
+                    "default": "fatal",
+                    "description": "The logging level for the language server.",
+                    "enum": [
+                        "trace", "debug", "info", "warn", "error", "fatal"
+                    ]
                 }
             }
         }

@@ -1,6 +1,7 @@
 import com.vasileff.ceylon.vscode.internal {
     log,
-    consumer
+    consumer,
+    setLogPriority
 }
 
 import io.typefox.lsapi {
@@ -23,18 +24,20 @@ import java.net {
 }
 
 shared void run() {
+    setLogPriority(process.arguments[1]);
+
     value port
         =   if (exists port = process.arguments[0])
             then parseInteger(port)
             else null;
 
     if (!exists port) {
-        log("error: no port specified.");
-        throw Exception("No port specified");
+        log.fatal("error: no port specified");
+        throw Exception("no port specified");
     }
 
     value socket = Socket("localhost", port);
-    log("connected to parent using socket on port ``port``");
+    log.info("connected to parent using socket on port ``port``");
 
     value handler = MessageJsonHandler();
     value reader = StreamMessageReader(socket.inputStream, handler);
@@ -47,26 +50,25 @@ shared void run() {
             shared actual void onError(String? s, Throwable? throwable) {
                 value ss = s else "<null>";
                 value tt = throwable?.string else "<null>";
-                log("tracer.error: ``ss``, ``tt``");
+                log.error("onError: ``ss``, ``tt``");
             }
             shared actual void onRead(Message? message, String? s) {
                 value mm = message?.string else "<null>";
                 value ss = s else "<null>";
-                log("tracer.read: ``mm``, ``ss``");
+                log.trace("onRead: ``mm``, ``ss``");
             }
             shared actual void onWrite(Message? message, String? s) {
                 value mm = message?.string else "<null>";
                 value ss = s else "<null>";
-                log("tracer.write: ``mm``, ``ss``");
+                log.trace("onWrite: ``mm``, ``ss``");
             }
         }
     );
 
-    reader.setOnError(consumer((Throwable t) => log("reader error: " + t.string)));
-    writer.setOnError(consumer((Throwable t) => log("writer error: " + t.string)));
+    reader.setOnError(consumer((Throwable t) => log.error(t.string, t)));
+    writer.setOnError(consumer((Throwable t) => log.error(t.string, t)));
 
-    log("Calling endpoint.connect()");
+    log.info("calling endpoint.connect()");
     endpoint.connect(reader, writer);
-
-    log("Done.");
+    log.info("run() finished");
 }

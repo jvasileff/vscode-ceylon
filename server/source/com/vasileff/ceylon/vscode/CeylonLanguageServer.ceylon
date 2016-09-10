@@ -10,7 +10,8 @@ import com.vasileff.ceylon.vscode.internal {
     log,
     runnable,
     JsonObject,
-    newDiagnostic
+    newDiagnostic,
+    setLogPriority
 }
 
 import io.typefox.lsapi {
@@ -97,7 +98,6 @@ class CeylonLanguageServer() satisfies LanguageServer {
     value typeCheckQueue = CeylonMutableSet(ConcurrentHashMap.newKeySet<String>());
     value textDocuments = CeylonMutableMap(ConcurrentHashMap<String, String>());
 
-    suppressWarnings("unusedDeclaration")
     value ceylonSettings
         =>  if (is JsonObject settings = settings)
             then settings.getObjectOrNull("ceylon")
@@ -105,19 +105,19 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
     shared actual
     void exit() {
-        log("exit called");
+        log.info("exit called");
     }
 
     shared actual
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
-        log("initialize called");
+        log.info("initialize called");
 
         if (exists rootPath = that.rootPath) {
-            log("rootPath is ``rootPath``");
+            log.info("rootPath is ``rootPath``");
             workspaceRoot = Paths.get(that.rootPath).toAbsolutePath().normalize();
         }
         else {
-            log("no root path provided");
+            log.info("no root path provided");
         }
 
         value result = InitializeResultImpl();
@@ -135,7 +135,7 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
     shared actual
     void shutdown()
-        =>  log("shutdown called");
+        =>  log.info("shutdown called");
 
     shared actual
     TextDocumentService textDocumentService => object
@@ -267,6 +267,10 @@ class CeylonLanguageServer() satisfies LanguageServer {
         shared actual
         void didChangeConfiguraton(DidChangeConfigurationParams that) {
             settings = forceWrapJavaJson(that.settings);
+            // update logging level
+            if (exists p = ceylonSettings?.getStringOrNull("serverLogPriority")) {
+                setLogPriority(p);
+            }
             textDocuments.each((uri->text) => queueDiagnotics(uri));
         }
 

@@ -3,6 +3,7 @@ module com.vasileff.ceylon.vscode "0.0.0" {
     import java.base "8";
     import ceylon.file "1.3.0";
     import ceylon.buffer "1.3.0";
+    import ceylon.logging "1.3.0";
     import ceylon.collection "1.3.0";
     import ceylon.interop.java "1.3.0";
     import com.redhat.ceylon.ide.common "1.3.0";

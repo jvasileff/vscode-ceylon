@@ -1,13 +1,13 @@
+import io.typefox.lsapi {
+    MessageParams,
+    MessageType,
+    DiagnosticSeverity
+}
 import io.typefox.lsapi.impl {
     MessageParamsImpl,
     DiagnosticImpl,
     PositionImpl,
     RangeImpl
-}
-import io.typefox.lsapi {
-    MessageParams,
-    MessageType,
-    DiagnosticSeverity
 }
 
 shared
@@ -27,9 +27,7 @@ DiagnosticImpl newDiagnostic(
         String? code = null) {
 
     value result = DiagnosticImpl();
-    if (exists range) {
-        result.range = range;
-    }
+    result.range = range;
     result.message = message;
     result.code = code;
     result.severity = severity;

@@ -1,33 +1,33 @@
-import io.typefox.lsapi {
-    DiagnosticSeverity
-}
-import java.io {
-    ByteArrayInputStream
-}
-import io.typefox.lsapi.impl {
-    DiagnosticImpl
-}
 import ceylon.buffer.charset {
     utf8
+}
+import ceylon.interop.java {
+    createJavaByteArray
+}
+
+import com.redhat.ceylon.compiler.typechecker.analyzer {
+    UsageWarning
+}
+import com.redhat.ceylon.compiler.typechecker.io {
+    VirtualFile
 }
 import com.vasileff.ceylon.dart.compiler {
     compileDartSP,
     javaList
 }
-import ceylon.interop.java {
-    createJavaByteArray
-}
-import com.redhat.ceylon.compiler.typechecker.io {
-    VirtualFile
-}
 import com.vasileff.ceylon.vscode.internal {
     newDiagnostic
 }
-import com.redhat.ceylon.compiler.typechecker.tree {
-    Message
+
+import io.typefox.lsapi {
+    DiagnosticSeverity
 }
-import com.redhat.ceylon.compiler.typechecker.analyzer {
-    UsageWarning
+import io.typefox.lsapi.impl {
+    DiagnosticImpl
+}
+
+import java.io {
+    ByteArrayInputStream
 }
 
 [DiagnosticImpl*] compileFile(String name, String textContent) {

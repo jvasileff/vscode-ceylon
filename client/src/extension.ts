@@ -77,7 +77,10 @@ export function activate(context: VSCode.ExtensionContext) {
                     '--rep', lib,
                     '--rep', modules,
                     'com.vasileff.ceylon.vscode/0.0.0',
-                    port.toString()
+                    port.toString(),
+                    VSCode.workspace
+                        .getConfiguration("ceylon")
+                        .get("serverLogPriority").toString()
                 ];
 
                 Net.createServer(socket => {

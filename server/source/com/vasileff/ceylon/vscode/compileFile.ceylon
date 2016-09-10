@@ -30,12 +30,14 @@ import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
 }
 
-[DiagnosticImpl*] compileFile(String textContent) {
+[DiagnosticImpl*] compileFile(String name, String textContent) {
+
+    value outerName = name;
 
     value virtualFile
         =   object satisfies VirtualFile {
                 children => javaList<VirtualFile> {};
-                name => "virtual-1.ceylon";
+                name => outerName;
                 path => name;
                 folder => false;
                 \iexists() => true;
@@ -68,7 +70,7 @@ import com.redhat.ceylon.compiler.typechecker.analyzer {
             =>  if (is UsageWarning m)
                 then !m.suppressed
                 else true)
-        .take(100).collect((message)
+        .take(500).collect((message)
             =>  newDiagnostic {
                     message = message.message;
                     range = rangeForMessage(message);

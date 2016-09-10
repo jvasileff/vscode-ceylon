@@ -310,7 +310,10 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
     void compileAndPublishDiagnostics(String uri, String documentText) {
         try {
-            value diagnostics = compileFile(documentText);
+            value name = if (exists i = uri.lastOccurrence('/'))
+                         then uri[i+1...]
+                         else uri;
+            value diagnostics = compileFile(name, documentText);
             value p = PublishDiagnosticsParamsImpl();
             p.uri = uri;
             p.diagnostics =JavaList(diagnostics);

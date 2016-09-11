@@ -1,3 +1,13 @@
+import ceylon.buffer.charset {
+    utf8
+}
+import ceylon.file {
+    parsePath,
+    Directory,
+    Visitor,
+    File,
+    Path
+}
 import ceylon.interop.java {
     JavaList,
     CeylonMutableMap,
@@ -68,10 +78,6 @@ import io.typefox.lsapi.services {
     WindowService
 }
 
-import java.nio.file {
-    Paths,
-    Path
-}
 import java.util {
     List
 }
@@ -85,6 +91,9 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
+import ceylon.logging {
+    error
+}
 
 class CeylonLanguageServer() satisfies LanguageServer {
 
@@ -92,7 +101,7 @@ class CeylonLanguageServer() satisfies LanguageServer {
     late Consumer<MessageParams> logMessage;
     late Consumer<MessageParams> showMessage;
     late Consumer<ShowMessageRequestParams> showMessageRequest;
-    late Path workspaceRoot;
+    late Directory rootDirectory;
     variable JsonValue settings = null;
 
     value compiling = AtomicBoolean(false);
@@ -113,9 +122,19 @@ class CeylonLanguageServer() satisfies LanguageServer {
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
         log.info("initialize called");
 
-        if (exists rootPath = that.rootPath) {
-            log.info("rootPath is ``rootPath``");
-            workspaceRoot = Paths.get(that.rootPath).toAbsolutePath().normalize();
+        if (exists rootPathString = that.rootPath) {
+            log.info("rootPath is ``rootPathString``");
+            // TODO make sure normalize is what we want. Don't resolve symlinks
+            value rootPath = parsePath(rootPathString).absolutePath.normalizedPath;
+            value rootDirectory = rootPath.resource;
+            if (is Directory rootDirectory) {
+                this.rootDirectory = rootDirectory;
+                initializeDocuments(rootDirectory);
+                textDocuments.each((documentId->_) => queueDiagnotics(documentId));
+            }
+            else {
+                log.error("the root path '``rootPathString``' is not a directory");
+            }
         }
         else {
             log.info("no root path provided");
@@ -152,7 +171,8 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         shared actual
         CompletableFuture<CompletionList> completion(TextDocumentPositionParams that) {
-            assert (exists text = textDocuments[that.textDocument.uri.string]);
+            assert (exists text
+                    =   textDocuments[toDocumentIdString(that.textDocument.uri)]);
             value lineCharacter = "``that.position.line``:``that.position.character``";
             value builder = CompletionListBuilder();
 
@@ -175,10 +195,10 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         shared actual
         void didChange(DidChangeTextDocumentParams that) {
-            value uri = that.textDocument.uri;
-            value existingText = textDocuments[uri];
+            value documentId = toDocumentIdString(that.textDocument.uri);
+            value existingText = textDocuments[documentId];
             if (!exists existingText) {
-                log.error("did not find changed document ``uri``");
+                log.error("did not find changed document ``documentId``");
                 return;
             }
             variable value newText = existingText;
@@ -191,24 +211,43 @@ class CeylonLanguageServer() satisfies LanguageServer {
                     newText = replaceRange(newText, range, change.text);
                 }
             }
-            textDocuments[uri] = newText;
-            queueDiagnotics(uri);
+            textDocuments[documentId] = newText;
+            queueDiagnotics(documentId);
         }
 
         shared actual
         void didClose(DidCloseTextDocumentParams that) {
-            textDocuments.remove(that.textDocument.uri.string);
+            // TODO for "single file mode", will need to remove closed documents
+            //textDocuments.remove(that.textDocument.uri.string);
         }
 
         shared actual
         void didOpen(DidOpenTextDocumentParams that) {
-            textDocuments[that.textDocument.uri.string] = that.textDocument.text;
-            queueDiagnotics(that.textDocument.uri);
+            value documentId = toDocumentIdString(that.textDocument.uri);
+
+            value existingText = textDocuments[documentId];
+            if (!exists existingText) {
+                log.error("did not find document to open ``documentId``");
+                return;
+            }
+            // this should match what we have, except possible LF vs. CRLF differences
+            if (log.enabled(error)) {
+                if (!corresponding(existingText.lines, that.textDocument.text.lines)) {
+                    log.error("existing text does not match opened text for \
+                               ``documentId`` \
+                               \n existing: '``existingText``'\
+                               \n new     : '``that.textDocument.text``'");
+                    textDocuments[documentId] = that.textDocument.text;
+                }
+            }
+            // TODO for "single file mode", will need to queue diagnostics
+            //queueDiagnotics(documentId);
         }
 
         shared actual
         void didSave(DidSaveTextDocumentParams that) {
-            queueDiagnotics(that.textDocument.uri);
+            // TODO no need, right?
+            //queueDiagnotics(toDocumentIdString(that.textDocument.uri));
         }
 
         shared actual
@@ -288,7 +327,6 @@ class CeylonLanguageServer() satisfies LanguageServer {
             if (exists p = ceylonSettings?.getStringOrNull("serverLogPriority")) {
                 setLogPriority(p);
             }
-            textDocuments.each((uri->text) => queueDiagnotics(uri));
         }
 
         shared actual
@@ -299,8 +337,8 @@ class CeylonLanguageServer() satisfies LanguageServer {
             =>  null;
     };
 
-    void queueDiagnotics(String uri) {
-        typeCheckQueue.add(uri);
+    void queueDiagnotics(String documentId) {
+        typeCheckQueue.add(documentId);
         launchCompiler();
     }
 
@@ -311,13 +349,17 @@ class CeylonLanguageServer() satisfies LanguageServer {
 
         // launch a compile task if one isn't running
         if (compiling.compareAndSet(false, true)) {
+            log.debug("launching compiler");
             CompletableFuture.runAsync(runnable {
                 void run() {
                     try {
-                        while (exists uri = typeCheckQueue.first) {
-                            typeCheckQueue.remove(uri);
-                            if (exists text = textDocuments[uri]) {
-                                compileAndPublishDiagnostics(uri, text);
+                        while (exists documentId = typeCheckQueue.first) {
+                            typeCheckQueue.remove(documentId);
+                            if (exists text = textDocuments[documentId]) {
+                                compileAndPublishDiagnostics(documentId, text);
+                            }
+                            else {
+                                log.error("no text existed for '``documentId``'");
                             }
                         }
                     }
@@ -329,20 +371,20 @@ class CeylonLanguageServer() satisfies LanguageServer {
         }
     }
 
-    void compileAndPublishDiagnostics(String uri, String documentText) {
+    void compileAndPublishDiagnostics(String documentId, String documentText) {
         try {
-            value name = if (exists i = uri.lastOccurrence('/'))
-                         then uri[i+1...]
-                         else uri;
+            value name = if (exists i = documentId.lastOccurrence('/'))
+                         then documentId[i+1...]
+                         else documentId;
             value diagnostics = compileFile(name, documentText);
             value p = PublishDiagnosticsParamsImpl();
-            p.uri = uri;
+            p.uri = toUri(documentId);
             p.diagnostics =JavaList(diagnostics);
             publishDiagnostics.accept(p);
         }
         catch (Exception | AssertionError e) {
             publishDiagnostics.accept(
-                PublishDiagnosticsParamsImpl(uri, JavaList(
+                PublishDiagnosticsParamsImpl(toUri(documentId), JavaList(
                     [newDiagnostic {
                         message = e.string;
                         severity = DiagnosticSeverity.error;
@@ -350,6 +392,61 @@ class CeylonLanguageServer() satisfies LanguageServer {
                 )
             );
         }
+    }
+
+    String toDocumentIdString(String | Path uri) {
+        // FIXME what about multiple source directories?
+        //       for now, format is 'source/com/example/file.ceylon'
+        value path
+            =   if (is Path uri)
+                    then uri
+                else if (uri.startsWith("file:///"))
+                    // we need the "right kind" of path
+                    then parsePath(uri[7...])
+                else parsePath(uri);
+
+        return path.relativePath(rootDirectory.path).string;
+    }
+
+    //see(`function toDocumentIdString`)
+    String toUri(String documentId)
+        =>  "file://" + rootDirectory.path.childPath(documentId)
+                .absolutePath.normalizedPath.string;
+
+    void initializeDocuments(Directory rootDirectory) {
+        // TODO discover source directories based on .ceylon/config
+        //      and module.ceylon files.
+        value sourceDirectory = rootDirectory.path.childPath("source").resource;
+        if (!is Directory sourceDirectory) {
+            log.error("cannot found 'source' in the root path '``rootDirectory.path``'");
+            return;
+        }
+        // now, read all '*.ceylon' and '*.dart' files into memory!
+        sourceDirectory.path.visit(object extends Visitor() {
+            shared actual void file(File file) {
+                value extension
+                    =   if (exists dot = file.name.lastOccurrence('.'))
+                        then file.name[dot+1...]
+                        else "";
+                if (extension in ["ceylon", "dart", "js", "java"]) {
+                    value documentId = toDocumentIdString(file.path);
+                    textDocuments.put(documentId, readFile(file));
+                    log.info("initializing file ``documentId``");
+                }
+            }
+        });
+    }
+}
+
+String readFile(File file) {
+    // we can't use ceylon.file::lines() because it doesn't retain the trailing
+    // newline, if one exists.
+    try (reader = file.Reader()) {
+        value decoder = utf8.cumulativeDecoder();
+        while (nonempty bytes = reader.readBytes(100)) {
+            decoder.more(bytes);
+        }
+        return decoder.done().string;
     }
 }
 
@@ -400,6 +497,6 @@ String replaceRange(String text, Range range, String replacementText) {
         sb.appendCharacter('\n');
         sb.append(line);
     }
-    log.debug(() => "\n'``sb.string``'");
+    //log.trace(() => "\n'``sb.string``'");
     return sb.string;
 }

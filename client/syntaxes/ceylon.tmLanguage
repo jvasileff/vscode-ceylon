@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>fileTypes</key>
+	<array>
+		<string>ceylon</string>
+	</array>
+	<key>foldingStartMarker</key>
+	<string>(\{\s*(//.*)?$|^\s*// \{\{\{)</string>
+	<key>foldingStopMarker</key>
+	<string>^\s*(\}|// \}\}\}$)</string>
+	<key>keyEquivalent</key>
+	<string>^~C</string>
+	<key>name</key>
+	<string>Ceylon</string>
+	<key>patterns</key>
+	<array>
+
+		<!-- Comments -->
+		<dict>
+			<key>begin</key>
+			<string>/\*</string>
+
+			<key>end</key>
+			<string>\*/</string>
+
+			<key>name</key>
+			<string>comment.multiline.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>//.*$</string>
+
+			<key>name</key>
+			<string>comment.singleline.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>^#!/.*$</string>
+
+			<key>name</key>
+			<string>comment.shebang.ceylon</string>
+		</dict>
+
+				<!-- Import package -->
+		<dict>
+			<key>begin</key>
+			<string>^\s*(import)</string>
+			
+			<key>end</key>
+			<string>\{</string>
+
+			<key>beginCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.control.ceylon</string>
+				</dict>
+			</dict>
+			
+			<key>endCaptures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>pontuation.import.ceylon</string>
+				</dict>
+			</dict>
+		
+			<key>contentName</key>
+			<string>variable.parameter.package.ceylon</string>	
+		</dict>
+
+
+		<!-- Keywords -->
+		<dict>
+			<key>match</key>
+			<string>\b(assembly|module|package|import|alias|class|interface|object|given|value|assign|void|function|new|of|extends|satisfies|adapts|abstracts|in|out|return|break|continue|throw|assert|dynamic|if|else|switch|case|for|while|try|catch|finally|then|let|this|outer|super|is|exists|nonempty)\b</string>	
+			<key>name</key>
+			<string>keyword.control.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>\b(doc|by|license|see|throws|tagged|shared|abstract|formal|default|actual|variable|late|native|deprecated|final|sealed|annotation|suppressWarnings)\b</string>	
+			<key>name</key>
+			<string>keyword.other.ceylon</string>
+		</dict>
+
+		<!-- Identifiers -->
+		<dict>
+			<key>match</key>
+			<string>([A-Z][a-zA-Z0-9_]*|\\I[a-zA-Z0-9_]+)</string>
+
+			<key>name</key>
+			<string>entity.name.class.ceylon</string>
+		</dict>
+
+
+		<dict>
+			<key>match</key>
+			<string>([a-z][a-zA-Z0-9_]*|\\i[a-zA-Z0-9_]+)</string>
+
+			<key>name</key>
+			<string>variable.other.ceylon</string>
+		</dict>
+
+
+		<!-- Literals -->
+		<dict>
+			<key>begin</key>
+			<string>("""|"|')</string>
+			
+			<key>end</key>
+			<string>\1</string>
+
+			<key>name</key>
+			<string>string.ceylon</string>
+	
+		</dict>
+
+		<dict>
+			<!-- Binary -->
+			<key>match</key>
+			<string>\$(([01]+(_[01]+)+)|[01]+)</string>
+		
+
+			<key>name</key>
+			<string>constant.numeric.binary.ceylon</string>
+	
+		</dict>
+
+		<dict>
+			<!-- Hexa -->
+			<key>match</key>
+			<string>#(([0-9ABCDEF]+(_[0-9ABCDEF]+)+)|[0-9ABCDEF]+)</string>
+		
+
+			<key>name</key>
+			<string>constant.numeric.hexa.ceylon</string>
+	
+		</dict>
+
+
+		<dict>
+			<!-- Floating point with exponential and weight -->
+			<key>match</key>
+			<string>-?(([0-9]+(_[0-9]+)+)|[0-9]+)\.(([0-9]+(_[0-9]+)+)|[0-9]+)(([eE]-?(([0-9]+(_[0-9]+)+)|[0-9]+))|[kmgtpKMGTP])?</string>
+		
+
+			<key>name</key>
+			<string>constant.numeric.floating.ceylon</string>
+	
+		</dict>
+
+		<dict>
+			<!-- Decimal with weight -->
+			<key>match</key>
+			<string>-?(([0-9]+(_[0-9]+)+)|[0-9]+)[kmgtpKMGTP]?</string>
+		
+			<key>name</key>
+			<string>constant.numeric.decimal.ceylon</string>
+	
+		</dict>
+
+
+	</array>
+	<key>scopeName</key>
+	<string>source.ceylon</string>
+</dict>
+</plist>

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>fileTypes</key>
+	<array>
+		<string>module.ceylon</string>
+	</array>
+	<key>foldingStartMarker</key>
+	<string>(\{\s*(//.*)?$|^\s*// \{\{\{)</string>
+	<key>foldingStopMarker</key>
+	<string>^\s*(\}|// \}\}\}$)</string>
+	<key>keyEquivalent</key>
+	<string>^~C</string>
+	<key>name</key>
+	<string>Ceylon Module</string>
+	<key>patterns</key>
+	<array>
+
+		<!-- Comments -->
+		<dict>
+			<key>begin</key>
+			<string>/\*</string>
+
+			<key>end</key>
+			<string>\*/</string>
+
+			<key>name</key>
+			<string>comment.multiline.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>//.*$</string>
+
+			<key>name</key>
+			<string>comment.singleline.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>^#!/.*$</string>
+
+			<key>name</key>
+			<string>comment.shebang.ceylon</string>
+		</dict>
+
+
+		<!-- Keywords -->
+		<dict>
+			<key>match</key>
+			<string>\b(module|import)\b</string>	
+			<key>name</key>
+			<string>keyword.control.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>\b(doc|by|license|see|throws|tagged|deprecated|shared|optional|suppressWarnings)\b</string>	
+			<key>name</key>
+			<string>keyword.other.ceylon</string>
+		</dict>
+
+		<!-- Identifiers -->
+		<dict>
+			<key>match</key>
+			<string>([A-Z][a-zA-Z0-9_]*|\\I[a-zA-Z0-9_]+)</string>
+
+			<key>name</key>
+			<string>storage.type.upcase.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>([a-z][a-zA-Z0-9_]*|\\i[a-zA-Z0-9_]+)(\.([a-z][a-zA-Z0-9_]*|\\i[a-zA-Z0-9_]+))+</string>
+
+			<key>name</key>
+			<string>variable.parameter.package.ceylon</string>
+		</dict>
+
+
+		<dict>
+			<key>match</key>
+			<string>([a-z][a-zA-Z0-9_]*|\\i[a-zA-Z0-9_]+)</string>
+
+			<key>name</key>
+			<string>variable.other.lowercase.ceylon</string>
+		</dict>
+
+		<dict>
+			<key>match</key>
+			<string>([a-z][a-zA-Z0-9_]*|\\i[a-zA-Z0-9_]+)</string>
+
+			<key>name</key>
+			<string>variable.other.ceylon</string>
+		</dict>
+
+
+		<!-- Literals -->
+		<dict>
+			<key>begin</key>
+			<string>("""|"|')</string>
+			
+			<key>end</key>
+			<string>\1</string>
+
+			<key>name</key>
+			<string>string.ceylon</string>
+	
+		</dict>
+
+	</array>
+	<key>scopeName</key>
+	<string>module.ceylon</string>
+</dict>
+</plist>

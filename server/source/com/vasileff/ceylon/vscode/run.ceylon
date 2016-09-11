@@ -48,19 +48,17 @@ shared void run() {
     endpoint.setMessageTracer(
         object satisfies MessageTracer {
             shared actual void onError(String? s, Throwable? throwable) {
-                value ss = s else "<null>";
-                value tt = throwable?.string else "<null>";
-                log.error("onError: ``ss``, ``tt``");
+                log.error("(onError) ``s else ""``", throwable);
             }
             shared actual void onRead(Message? message, String? s) {
                 value mm = message?.string else "<null>";
                 value ss = s else "<null>";
-                log.trace("onRead: ``mm``, ``ss``");
+                log.trace("(onRead) ``mm``, ``ss``");
             }
             shared actual void onWrite(Message? message, String? s) {
                 value mm = message?.string else "<null>";
                 value ss = s else "<null>";
-                log.trace("onWrite: ``mm``, ``ss``");
+                log.trace("(onWrite) ``mm``, ``ss``");
             }
         }
     );

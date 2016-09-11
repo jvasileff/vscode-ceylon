@@ -1,0 +1,32 @@
+{
+    "For Loop": {
+        "prefix": "for",
+        "body": [
+            "for (${item} in ${iterable}) {",
+            "\t$0",
+            "}"
+        ],
+        "description": "For Loop"
+    },
+    "Try/Catch": {
+        "prefix": "try",
+        "body": [
+            "try {",
+            "\t$2",
+            "}",
+            "catch (${Exception | AssertionError} ${e}) {",
+            "\t$3",
+            "}"
+        ],
+        "description": "Try/Catch"
+    },
+    "Try with Resource": {
+        "prefix": "try",
+        "body": [
+            "try (${resource} = ${factory}()) {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Try with Resource"
+    }
+}

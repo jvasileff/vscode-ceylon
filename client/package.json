@@ -29,6 +29,10 @@
             ],
             "configuration": "./language-configuration.json"
         }],
+        "snippets": [{
+            "language": "ceylon",
+            "path": "./snippets/ceylon.json"
+        }],
         "grammars": [
             {
                 "language": "ceylon",

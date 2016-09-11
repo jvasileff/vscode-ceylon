@@ -42,7 +42,7 @@ shared void run() {
     value handler = MessageJsonHandler();
     value reader = StreamMessageReader(socket.inputStream, handler);
     value writer = StreamMessageWriter(socket.outputStream, handler);
-    value ceylonLanguageServer = CeylonLanguageServer();
+    value ceylonLanguageServer = LanguageServerWrapper(CeylonLanguageServer());
     value endpoint = LanguageServerEndpoint(ceylonLanguageServer);
 
     endpoint.setMessageTracer(

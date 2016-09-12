@@ -39,12 +39,6 @@
                 "scopeName": "source.ceylon",
                 "path": "./syntaxes/ceylon.tmLanguage"
             }
-            // ,{
-            //      // TODO how to limit to files named 'module.ceylon'?
-            //     "language": "ceylon",
-            //     "scopeName": "module.ceylon",
-            //     "path": "./syntaxes/ceylonModule.tmLanguage"
-            // }
         ],
         "configuration": {
             "title": "Ceylon Language Server",

@@ -578,7 +578,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                         else "";
 
                 showMessage.accept(newMessageParams {
-                    message = "An error occurred: ``exceptionType``\
+                    message = "``exceptionType``\
                                ``unwrapped.message.replace("\n", "; ")``\
                                \n\n``unwrapped.string``";
                     type = MessageType.error;

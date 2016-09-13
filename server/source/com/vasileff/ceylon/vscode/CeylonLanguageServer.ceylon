@@ -32,7 +32,8 @@ import com.vasileff.ceylon.vscode.internal {
     runnable,
     JsonObject,
     setLogPriority,
-    newMessageParams
+    newMessageParams,
+    ReportedException
 }
 
 import io.typefox.lsapi {
@@ -90,6 +91,9 @@ import io.typefox.lsapi.services {
     WorkspaceService,
     WindowService
 }
+import io.typefox.lsapi.services.transport.trace {
+    MessageTracer
+}
 
 import java.util {
     List
@@ -104,9 +108,6 @@ import java.util.concurrent.atomic {
 }
 import java.util.\ifunction {
     Consumer
-}
-import io.typefox.lsapi.services.transport.trace {
-    MessageTracer
 }
 
 class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
@@ -359,6 +360,22 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         launchCompiler();
     }
 
+    void runAsync(Anything() run) {
+        // TODO keep track of these, and shut them down if an exit or shutdown
+        //      message is recieved
+        value runArgument = run;
+        CompletableFuture.runAsync(runnable {
+            void run() {
+                try {
+                    runArgument();
+                }
+                catch (AssertionError | Exception t) {
+                    onError(t.message, t);
+                }
+            }
+        });
+    }
+
     void launchCompiler() {
         if (typeCheckQueue.empty) {
             return;
@@ -367,32 +384,30 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         // launch a compile task if one isn't running
         if (compiling.compareAndSet(false, true)) {
             log.debug("launching compiler");
-            CompletableFuture.runAsync(runnable {
-                void run() {
-                    try {
-                        // TODO For files that are not part of a module (which means not
-                        //      in a source directory, I guess), compile individually with
-                        //      compileAndPublishDiagnostics? Maybe only if there is no
-                        //      InitializeParams.rootPath? Perhaps parse, but don't
-                        //      typecheck? Or do typecheck so completion, etc, works,
-                        //      but don't report analysis errors?
-                        //
-                        //      If so, they should probably only be compiled when opened
-                        //      and changed, with their diagnostics being cleared when
-                        //      closed.
+            runAsync(() {
+                try {
+                    // TODO For files that are not part of a module (which means not
+                    //      in a source directory, I guess), compile individually with
+                    //      compileAndPublishDiagnostics? Maybe only if there is no
+                    //      InitializeParams.rootPath? Perhaps parse, but don't
+                    //      typecheck? Or do typecheck so completion, etc, works,
+                    //      but don't report analysis errors?
+                    //
+                    //      If so, they should probably only be compiled when opened
+                    //      and changed, with their diagnostics being cleared when
+                    //      closed.
 
-                        // TODO Until the above, we should ignore files that are not in
-                        //      a source directory (or avoid having them added to the
-                        //      queue in the first place.)
-                        while (!typeCheckQueue.empty) {
-                            typeCheckQueue.clear();
-                            value listings = textDocuments.clone();
-                            compileModulesAndPublishDiagnostics(listings);
-                        }
+                    // TODO Until the above, we should ignore files that are not in
+                    //      a source directory (or avoid having them added to the
+                    //      queue in the first place.)
+                    while (!typeCheckQueue.empty) {
+                        typeCheckQueue.clear();
+                        value listings = textDocuments.clone();
+                        compileModulesAndPublishDiagnostics(listings);
                     }
-                    finally {
-                        compiling.set(false);
-                    }
+                }
+                finally {
+                    compiling.set(false);
                 }
             });
         }
@@ -411,15 +426,15 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
              allDiagnostics = ArrayListMultimap { *compileModules(listings) };
         }
         catch (Throwable e) {
-            log.error("failed compile", e);
+            log.error("failed compile");
 
             value sb = StringBuilder();
             printStackTrace(e, sb.append);
 
             value exceptionType
-                =   if (!e is ReportableException) then
-                        let (cn = className(e))
-                        cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
+                =   if (!e is ReportableException)
+                    then let (cn = className(e))
+                         cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
                     else "";
 
             showMessage.accept(newMessageParams {
@@ -428,7 +443,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                            \n\n``sb.string``";
                 type = MessageType.error;
             });
-            return;
+
+            // wrap, so we don't re-report to the user
+            throw ReportedException(e);
         }
 
         // FIXME We have to send diags for *all* files, since we need to clear
@@ -509,26 +526,71 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
     shared actual
     void onError(String? s, variable Throwable? throwable) {
-        if (is AssertionException ae = throwable) {
-            throwable = ae.cause;
+
+        "Does this exception wrap an error that has already been reported to the user?"
+        variable Boolean isReportedException = false;
+
+        "Is the exception's text already formatted for the user?"
+        variable Boolean isReportableException = false;
+
+        while (true) {
+            switch (t = throwable)
+            case (is AssertionException) {
+                throwable = t.cause;
+            }
+            case (is ReportedException) {
+                isReportedException = true;
+                throwable = t.cause;
+            }
+            case (is ReportableException) {
+                isReportableException = true;
+                break;
+            }
+            else {
+                break;
+            }
         }
-        log.error("(onError) ``s else ""``", throwable);
+
+        value unwrapped = throwable;
+
+        if (exists unwrapped, !isReportedException) {
+            // Send an error message to the client. If its anything but a
+            // ReportableException, prefix with "ExceptionType: "
+            try {
+                value exceptionType
+                    =   if (!isReportableException)
+                        then let (cn = className(unwrapped))
+                             cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
+                        else "";
+
+                showMessage.accept(newMessageParams {
+                    message = "An error occurred: ``exceptionType``\
+                               ``unwrapped.message.replace("\n", "; ")``\
+                               \n\n``unwrapped.string``";
+                    type = MessageType.error;
+                });
+            }
+            catch (AssertionError | Exception e) {
+                // Oh well!
+            }
+        }
+
+        log.error(()=>"(onError) ``s else ""``", throwable);
     }
 
     shared actual
     void onRead(Message? message, String? s) {
         value mm = message?.string else "<null>";
         value ss = s else "<null>";
-        log.trace("(onRead) ``mm``, ``ss``");
+        log.trace(()=>"(onRead) ``mm``, ``ss``");
     }
 
     shared actual
     void onWrite(Message? message, String? s) {
         value mm = message?.string else "<null>";
         value ss = s else "<null>";
-        log.trace("(onWrite) ``mm``, ``ss``");
+        log.trace(()=>"(onWrite) ``mm``, ``ss``");
     }
-
 }
 
 String readFile(File file) {

@@ -5,7 +5,6 @@
       <configuration>
         <option name="compileForJvm" value="true" />
         <option name="compileToJs" value="false" />
-        <option name="compileToDart" value="false" />
         <option name="systemRepository" value="" />
         Do not edit, modify .config/ide-config instead
       </configuration>

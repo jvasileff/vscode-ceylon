@@ -15,7 +15,7 @@ import ceylon.interop.java {
     JavaComparator
 }
 import ceylon.logging {
-    error
+    debug
 }
 
 import com.vasileff.ceylon.dart.compiler {
@@ -33,7 +33,8 @@ import com.vasileff.ceylon.vscode.internal {
     JsonObject,
     setLogPriority,
     newMessageParams,
-    ReportedException
+    ReportedException,
+    eq
 }
 
 import io.typefox.lsapi {
@@ -72,7 +73,8 @@ import io.typefox.lsapi {
     TextDocumentSyncKind,
     Range,
     MessageType,
-    Message
+    Message,
+    FileChangeType
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
@@ -234,39 +236,23 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         }
 
         shared actual
-        void didClose(DidCloseTextDocumentParams that) {
-            // TODO for "single file mode", will need to remove closed documents
-            //textDocuments.remove(that.textDocument.uri.string);
-        }
+        void didClose(DidCloseTextDocumentParams that) {}
 
         shared actual
         void didOpen(DidOpenTextDocumentParams that) {
-            value documentId = toDocumentIdString(that.textDocument.uri);
-
-            value existingText = textDocuments[documentId];
-            if (!exists existingText) {
-                log.error("did not find document to open ``documentId``");
-                return;
-            }
-            // this should match what we have, except possible LF vs. CRLF differences
-            if (log.enabled(error)) {
-                if (!corresponding(existingText.lines, that.textDocument.text.lines)) {
-                    log.error("existing text does not match opened text for \
-                               ``documentId`` \
-                               \n existing: '``existingText``'\
-                               \n new     : '``that.textDocument.text``'");
-                    textDocuments[documentId] = that.textDocument.text;
+            if (log.enabled(debug)) {
+                value documentId = toDocumentIdString(that.textDocument.uri);
+                if (!textDocuments.defines(documentId)) {
+                    // we should be immediately followed by a didChangeWatchedFiles
+                    // message, where we'll create the new entry
+                    log.debug("didOpen for unrecognized file '``documentId``'; \
+                               must be a 'New File' operation from within the GUI");
                 }
             }
-            // TODO for "single file mode", will need to queue diagnostics
-            //queueDiagnotics(documentId);
         }
 
         shared actual
-        void didSave(DidSaveTextDocumentParams that) {
-            // TODO no need, right?
-            //queueDiagnotics(toDocumentIdString(that.textDocument.uri));
-        }
+        void didSave(DidSaveTextDocumentParams that) {}
 
         shared actual
         CompletableFuture<DocumentHighlight>? documentHighlight
@@ -348,7 +334,35 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         }
 
         shared actual
-        void didChangeWatchedFiles(DidChangeWatchedFilesParams that) {}
+        void didChangeWatchedFiles(DidChangeWatchedFilesParams that) {
+            for (change in that.changes) {
+                value documentId = toDocumentIdString(change.uri);
+                if (change.type == FileChangeType.deleted) {
+                    value originalText = textDocuments.remove(documentId);
+                    // TODO this should be in a method
+                    if (originalText exists) {
+                        queueDiagnotics(documentId);
+                    }
+                }
+                else if (change.type == FileChangeType.created
+                        || change.type == FileChangeType.changed) {
+                    // read or re-read from filesystem
+                    if (is File file = parsePath(change.uri[7...]).resource) {
+                        value newText = readFile(file);
+                        value originalText = textDocuments.put(documentId, newText);
+                        // TODO this should be in a method
+                        if (!eq(newText, originalText)) {
+                            queueDiagnotics(documentId);
+                        }
+                    }
+                    else {
+                        throw ReportableException {
+                            "unable to read watched file 'change.uri'";
+                        };
+                    }
+                }
+            }
+        }
 
         shared actual
         CompletableFuture<List<out SymbolInformation>>? symbol(WorkspaceSymbolParams that)

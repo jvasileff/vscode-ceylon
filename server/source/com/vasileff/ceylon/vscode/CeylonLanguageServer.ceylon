@@ -6,7 +6,9 @@ import ceylon.file {
     Directory,
     Visitor,
     File,
-    Path
+    Path,
+    Nil,
+    Link
 }
 import ceylon.interop.java {
     JavaList,
@@ -85,7 +87,9 @@ import io.typefox.lsapi.impl {
     ServerCapabilitiesImpl,
     PublishDiagnosticsParamsImpl,
     CompletionOptionsImpl,
-    DiagnosticImpl
+    DiagnosticImpl,
+    CompletionListImpl,
+    CompletionItemImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -191,6 +195,15 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
         shared actual
         CompletableFuture<CompletionList> completion(TextDocumentPositionParams that) {
+            value documentId = toDocumentIdString(that.textDocument.uri);
+
+            // TODO support source directories other than "source/"!
+            if (!documentId.startsWith("source/")) {
+                value result = CompletionListImpl();
+                result.items = JavaList<CompletionItemImpl>([]);
+                return CompletableFuture.completedFuture<CompletionList>(result);
+            }
+
             assert (exists text
                     =   textDocuments[toDocumentIdString(that.textDocument.uri)]);
             value lineCharacter = "``that.position.line``:``that.position.character``";
@@ -216,10 +229,16 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         shared actual
         void didChange(DidChangeTextDocumentParams that) {
             value documentId = toDocumentIdString(that.textDocument.uri);
+
+            // TODO support source directories other than "source/"!
+            if (!documentId.startsWith("source/")) {
+                return;
+            }
+
             value existingText = textDocuments[documentId];
             if (!exists existingText) {
-                log.error("did not find changed document ``documentId``");
-                return;
+                throw ReportableException("did not find changed document \
+                                           '``documentId``'");
             }
             variable value newText = existingText;
             for (change in that.contentChanges) {
@@ -242,6 +261,12 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         void didOpen(DidOpenTextDocumentParams that) {
             if (log.enabled(debug)) {
                 value documentId = toDocumentIdString(that.textDocument.uri);
+
+                // TODO support source directories other than "source/"!
+                if (!documentId.startsWith("source/")) {
+                    return;
+                }
+
                 if (!textDocuments.defines(documentId)) {
                     // we should be immediately followed by a didChangeWatchedFiles
                     // message, where we'll create the new entry
@@ -337,6 +362,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         void didChangeWatchedFiles(DidChangeWatchedFilesParams that) {
             for (change in that.changes) {
                 value documentId = toDocumentIdString(change.uri);
+                // TODO support source directories other than "source/"!
+                if (!documentId.startsWith("source/")) {
+                    continue;
+                }
                 if (change.type == FileChangeType.deleted) {
                     value originalText = textDocuments.remove(documentId);
                     // TODO this should be in a method
@@ -347,17 +376,22 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                 else if (change.type == FileChangeType.created
                         || change.type == FileChangeType.changed) {
                     // read or re-read from filesystem
-                    if (is File file = parsePath(change.uri[7...]).resource) {
-                        value newText = readFile(file);
+                    value resource = parsePath(change.uri[7...]).resource;
+                    switch (resource)
+                    case (is File) {
+                        value newText = readFile(resource);
                         value originalText = textDocuments.put(documentId, newText);
                         // TODO this should be in a method
                         if (!eq(newText, originalText)) {
                             queueDiagnotics(documentId);
                         }
                     }
-                    else {
+                    case (is Directory) {
+                        // It's a directory named like 'x.ceylon'. Ignore.
+                    }
+                    case (is Nil | Link) {
                         throw ReportableException {
-                            "unable to read watched file 'change.uri'";
+                            "unable to read watched file '``change.uri``'";
                         };
                     }
                 }
@@ -510,6 +544,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                                 .absolutePath.normalizedPath.string
             else "file://" + documentId;
 
+    "Populate [[textDocuments]] with all source files found in all source directories.
+
+     Files outside of source directories are ignored. These will likely need to be
+     loaded in [[TextDocumentService.didOpen]] if we add support for them."
     void initializeDocuments(Directory rootDirectory) {
         // TODO discover source directories based on .ceylon/config,
         //      defaulting to 'source/'

@@ -50,10 +50,10 @@
                 },
                 "ceylon.serverLogPriority": {
                     "type": "string",
-                    "default": "fatal",
+                    "default": "disabled",
                     "description": "The logging level for the language server.",
                     "enum": [
-                        "trace", "debug", "info", "warn", "error", "fatal"
+                        "trace", "debug", "info", "warn", "error", "fatal", "disabled"
                     ]
                 }
             }

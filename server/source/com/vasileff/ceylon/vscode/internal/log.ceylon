@@ -1,7 +1,8 @@
 import ceylon.file {
     parsePath,
     Directory,
-    temporaryDirectory
+    temporaryDirectory,
+    Writer
 }
 import ceylon.logging {
     logger,
@@ -18,9 +19,14 @@ import ceylon.logging {
     error
 }
 
+variable Boolean loggingEnabled = true;
+
 shared
-void setLogPriority(String | Priority | Null priority)
-    =>  defaultPriority
+void setLogPriority(String | Priority | Null priority) {
+    loggingEnabled
+        =   !(priority?.equals("disabled") else false);
+
+    defaultPriority
         =   switch(priority)
             case (is Priority) priority
             case ("trace") trace
@@ -30,11 +36,12 @@ void setLogPriority(String | Priority | Null priority)
             case ("error") error
             case ("fatal") fatal
             else fatal;
+}
 
-shared
-Logger log = (() {
-    // TODO allow logging to be disabled?
-    //      support logging to the base directory?
+Writer logWriter = (() {
+    // logWriter won't be initialized (the log file won't be created) until
+    // the first the first message is logged
+
     value directory
         =   if (is Directory d = parsePath("/tmp").resource)
             then d else temporaryDirectory;
@@ -45,19 +52,23 @@ Logger log = (() {
                 ".log";
             };
 
-    value writer
-        =   tempFile.Overwriter();
+    return tempFile.Overwriter();
+})();
 
+shared
+Logger log = (() {
     void writeToLog(String s) {
-        writer.write(s);
-        writer.flush();
+        logWriter.write(s);
+        logWriter.flush();
     }
 
     addLogWriter {
         void log(Priority p, Category c, String m, Throwable? t) {
-            writeToLog("[``system.milliseconds``] ``p.string``: ``m``\n");
-            if (exists t ) {
-                printStackTrace(t, writeToLog);
+            if (loggingEnabled) {
+                writeToLog("[``system.milliseconds``] ``p.string``: ``m``\n");
+                if (exists t) {
+                    printStackTrace(t, writeToLog);
+                }
             }
         }
     };

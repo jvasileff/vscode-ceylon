@@ -2,14 +2,18 @@ import ceylon.buffer.charset {
     utf8
 }
 import ceylon.interop.java {
-    createJavaByteArray
+    createJavaByteArray,
+    JavaList,
+    javaString,
+    CeylonIterable
 }
 
 import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
 }
 import com.redhat.ceylon.compiler.typechecker.io {
-    VirtualFile
+    VirtualFile,
+    VFS
 }
 import com.redhat.ceylon.compiler.typechecker.parser {
     RecognitionError
@@ -20,11 +24,13 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 import com.vasileff.ceylon.dart.compiler {
     javaList,
-    compileDartSP
+    compileDartSP,
+    dartBackend
 }
 import com.vasileff.ceylon.structures {
     ArrayListMultimap,
-    HashMultimap
+    HashMultimap,
+    Multimap
 }
 import com.vasileff.ceylon.vscode.internal {
     newDiagnostic,
@@ -41,6 +47,23 @@ import io.typefox.lsapi.impl {
 import java.io {
     ByteArrayInputStream,
     InputStream
+}
+import com.redhat.ceylon.compiler.typechecker.context {
+    PhasedUnits,
+    Context,
+    PhasedUnit
+}
+import com.redhat.ceylon.cmr.api {
+    RepositoryManagerBuilder
+}
+import com.redhat.ceylon.cmr.ceylon {
+    CeylonUtils
+}
+import com.redhat.ceylon.model.typechecker.util {
+    ModuleManager
+}
+import com.redhat.ceylon.model.typechecker.model {
+    Module
 }
 
 [<String->DiagnosticImpl>*] compileModules({<String -> String>*} listings1 = {}) {
@@ -107,7 +130,8 @@ import java.io {
                         })
             };
 
-    log.debug("files to compile: ``files``");
+    log.debug(()=>"compiling ``files.size`` files");
+    log.trace(()=>"files to compile: ``files``");
 
     value directories
         =   HashMultimap<String, String> {
@@ -159,7 +183,11 @@ import java.io {
         }
     }
 
+    value moduleFilters = ["default", *dartCompatibleModules(DirectoryVirtualFile(""))];
+    log.debug("compiling with module filters: ``moduleFilters``");
+
     value [cuList, status, messages] = compileDartSP {
+        moduleFilters = moduleFilters;
         virtualFiles = [DirectoryVirtualFile("")];
     };
 
@@ -179,4 +207,61 @@ import java.io {
                         then DiagnosticSeverity.warning
                         else DiagnosticSeverity.error;
                 });
+}
+
+[<VirtualFile->VirtualFile>*] flattenVirtualFiles(VirtualFile folder) {
+    assert (folder.folder);
+
+    {VirtualFile*} folderAndDescendentFolders(VirtualFile folder)
+        =>  CeylonIterable(folder.children)
+                .filter(VirtualFile.folder)
+                .flatMap(folderAndDescendentFolders)
+                .follow(folder);
+
+    return [ for (f in folderAndDescendentFolders(folder))
+             for (file in f.children)
+             if (!file.folder) f -> file ];
+}
+
+[String*] dartCompatibleModules(VirtualFile rootFolder) {
+    value ctx = Context(CeylonUtils.repoManager().buildManager(), VFS());
+    value pus = PhasedUnits(ctx);
+    value moduleSourceMapper = pus.moduleSourceMapper;
+
+    value moduleDescriptors
+        =   flattenVirtualFiles(rootFolder).select((folder->file)
+            =>  file.name == "module.ceylon");
+
+    // parse all module.ceylon files
+    for (folder->file in moduleDescriptors) {
+        log.debug("processing module descriptor '``file.path``'");
+        for (part in file.path.split('/'.equals).exceptLast) {
+            moduleSourceMapper.push(part);
+        }
+        moduleSourceMapper.visitModuleFile();
+        pus.parseUnit(file, folder);
+    }
+
+    // Obtain Modules by visiting the phased units.
+    //
+    // Note: calling visitRemainingModulePhase() on the PhasedUnits doesn't appear
+    // necessary; the native() annotations are already set. So we'll just call
+    // visitSrcModulePhase() and be done.
+    value modules = CeylonIterable(pus.phasedUnits).map<Module?>((pu)
+        =>  pu.visitSrcModulePhase() else null).coalesced;
+
+    // Include all modules that are not explicitly excluded, since parse or other errors
+    // may make it impossible to determine compatibility
+    function dartSupported(Module m)
+        =>  m.nativeBackends.none() || m.nativeBackends.supports(dartBackend);
+
+    value allModules
+        =   moduleDescriptors.map(Entry.key)
+                .map(VirtualFile.path)
+                .map((name) => ".".join(name.split('/'.equals)));
+
+    value excludes
+        =   modules.filter(not(dartSupported)).collect(Module.nameAsString);
+
+    return allModules.select(not(excludes.contains));
 }

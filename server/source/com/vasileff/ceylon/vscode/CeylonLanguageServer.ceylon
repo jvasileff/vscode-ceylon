@@ -70,7 +70,8 @@ import io.typefox.lsapi {
     RenameParams,
     TextDocumentSyncKind,
     Range,
-    MessageType
+    MessageType,
+    Message
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
@@ -104,8 +105,11 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
+import io.typefox.lsapi.services.transport.trace {
+    MessageTracer
+}
 
-class CeylonLanguageServer() satisfies LanguageServer {
+class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
     late Consumer<PublishDiagnosticsParams> publishDiagnostics;
     late Consumer<MessageParams> logMessage;
@@ -502,6 +506,29 @@ class CeylonLanguageServer() satisfies LanguageServer {
         log.info("initialized ``count`` files in '``sourceDirectory``' \
                   in ``system.milliseconds - startMillis``ms");
     }
+
+    shared actual
+    void onError(String? s, variable Throwable? throwable) {
+        if (is AssertionException ae = throwable) {
+            throwable = ae.cause;
+        }
+        log.error("(onError) ``s else ""``", throwable);
+    }
+
+    shared actual
+    void onRead(Message? message, String? s) {
+        value mm = message?.string else "<null>";
+        value ss = s else "<null>";
+        log.trace("(onRead) ``mm``, ``ss``");
+    }
+
+    shared actual
+    void onWrite(Message? message, String? s) {
+        value mm = message?.string else "<null>";
+        value ss = s else "<null>";
+        log.trace("(onWrite) ``mm``, ``ss``");
+    }
+
 }
 
 String readFile(File file) {

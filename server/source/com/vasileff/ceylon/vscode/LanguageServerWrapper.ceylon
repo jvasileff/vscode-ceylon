@@ -39,7 +39,8 @@ import io.typefox.lsapi {
     ShowMessageRequestParams,
     DidChangeConfigurationParams,
     DidChangeWatchedFilesParams,
-    WorkspaceSymbolParams
+    WorkspaceSymbolParams,
+    Message
 }
 import java.util.concurrent {
     CompletableFuture
@@ -47,14 +48,17 @@ import java.util.concurrent {
 import java.util {
     List
 }
+import io.typefox.lsapi.services.transport.trace {
+    MessageTracer
+}
 
 class AssertionException(AssertionError error) extends Exception(null, error) {}
 
 "A wraper for [[LanguageServer]]s that catches [[AssertionError]]s and rethrows them
  as [[AssertionException]]s. This is necessary, since `java.lang.Error`s are not caught by
  the framework and basically hose the server."
-class LanguageServerWrapper(LanguageServer delegate)
-        satisfies LanguageServer {
+class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
+        satisfies LanguageServer & MessageTracer {
 
     shared actual void exit() {
         try {
@@ -364,4 +368,31 @@ class LanguageServerWrapper(LanguageServer delegate)
         }
 
     };
+
+    shared actual void onError(String? s, Throwable? throwable) {
+        try {
+            delegate.onError(s, throwable);
+        }
+        catch (AssertionError e) {
+            throw AssertionException(e);
+        }
+    }
+
+    shared actual void onRead(Message? message, String? s) {
+        try {
+            delegate.onRead(message, s);
+        }
+        catch (AssertionError e) {
+            throw AssertionException(e);
+        }
+    }
+
+    shared actual void onWrite(Message? message, String? s) {
+        try {
+            delegate.onWrite(message, s);
+        }
+        catch (AssertionError e) {
+            throw AssertionException(e);
+        }
+    }
 }

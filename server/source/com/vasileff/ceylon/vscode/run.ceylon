@@ -45,26 +45,7 @@ shared void run() {
     value ceylonLanguageServer = LanguageServerWrapper(CeylonLanguageServer());
     value endpoint = LanguageServerEndpoint(ceylonLanguageServer);
 
-    endpoint.setMessageTracer(
-        object satisfies MessageTracer {
-            shared actual void onError(String? s, variable Throwable? throwable) {
-                if (is AssertionException ae = throwable) {
-                    throwable = ae.cause;
-                }
-                log.error("(onError) ``s else ""``", throwable);
-            }
-            shared actual void onRead(Message? message, String? s) {
-                value mm = message?.string else "<null>";
-                value ss = s else "<null>";
-                log.trace("(onRead) ``mm``, ``ss``");
-            }
-            shared actual void onWrite(Message? message, String? s) {
-                value mm = message?.string else "<null>";
-                value ss = s else "<null>";
-                log.trace("(onWrite) ``mm``, ``ss``");
-            }
-        }
-    );
+    endpoint.setMessageTracer(ceylonLanguageServer);
 
     reader.setOnError(consumer((Throwable t) => log.error(t.string, t)));
     writer.setOnError(consumer((Throwable t) => log.error(t.string, t)));

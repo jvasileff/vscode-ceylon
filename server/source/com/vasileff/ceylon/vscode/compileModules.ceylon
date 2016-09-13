@@ -3,24 +3,25 @@ import ceylon.buffer.charset {
 }
 import ceylon.interop.java {
     createJavaByteArray,
-    JavaList,
-    javaString,
     CeylonIterable
 }
 
+import com.redhat.ceylon.cmr.ceylon {
+    CeylonUtils
+}
 import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
+}
+import com.redhat.ceylon.compiler.typechecker.context {
+    PhasedUnits,
+    Context
 }
 import com.redhat.ceylon.compiler.typechecker.io {
     VirtualFile,
     VFS
 }
-import com.redhat.ceylon.compiler.typechecker.parser {
-    RecognitionError
-}
-import com.redhat.ceylon.compiler.typechecker.tree {
-    Message,
-    AnalysisMessage
+import com.redhat.ceylon.model.typechecker.model {
+    Module
 }
 import com.vasileff.ceylon.dart.compiler {
     javaList,
@@ -29,8 +30,7 @@ import com.vasileff.ceylon.dart.compiler {
 }
 import com.vasileff.ceylon.structures {
     ArrayListMultimap,
-    HashMultimap,
-    Multimap
+    HashMultimap
 }
 import com.vasileff.ceylon.vscode.internal {
     newDiagnostic,
@@ -47,23 +47,6 @@ import io.typefox.lsapi.impl {
 import java.io {
     ByteArrayInputStream,
     InputStream
-}
-import com.redhat.ceylon.compiler.typechecker.context {
-    PhasedUnits,
-    Context,
-    PhasedUnit
-}
-import com.redhat.ceylon.cmr.api {
-    RepositoryManagerBuilder
-}
-import com.redhat.ceylon.cmr.ceylon {
-    CeylonUtils
-}
-import com.redhat.ceylon.model.typechecker.util {
-    ModuleManager
-}
-import com.redhat.ceylon.model.typechecker.model {
-    Module
 }
 
 [<String->DiagnosticImpl>*] compileModules({<String -> String>*} listings1 = {}) {

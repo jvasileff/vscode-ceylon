@@ -4,9 +4,6 @@ import com.vasileff.ceylon.vscode.internal {
     setLogPriority
 }
 
-import io.typefox.lsapi {
-    Message
-}
 import io.typefox.lsapi.services.json {
     MessageJsonHandler,
     StreamMessageReader,
@@ -14,9 +11,6 @@ import io.typefox.lsapi.services.json {
 }
 import io.typefox.lsapi.services.transport.server {
     LanguageServerEndpoint
-}
-import io.typefox.lsapi.services.transport.trace {
-    MessageTracer
 }
 
 import java.net {

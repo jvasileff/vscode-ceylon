@@ -11,17 +11,28 @@ import ceylon.file {
 import ceylon.interop.java {
     JavaList,
     CeylonMutableMap,
-    CeylonMutableSet
+    CeylonMutableSet,
+    JavaComparator
+}
+import ceylon.logging {
+    error
 }
 
+import com.vasileff.ceylon.dart.compiler {
+    ReportableException
+}
+import com.vasileff.ceylon.structures {
+    ArrayListMultimap,
+    ListMultimap
+}
 import com.vasileff.ceylon.vscode.internal {
     forceWrapJavaJson,
     JsonValue,
     log,
     runnable,
     JsonObject,
-    newDiagnostic,
-    setLogPriority
+    setLogPriority,
+    newMessageParams
 }
 
 import io.typefox.lsapi {
@@ -58,8 +69,8 @@ import io.typefox.lsapi {
     InitializeResult,
     RenameParams,
     TextDocumentSyncKind,
-    DiagnosticSeverity,
-    Range
+    Range,
+    MessageType
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
@@ -69,7 +80,8 @@ import io.typefox.lsapi.impl {
     InitializeResultImpl,
     ServerCapabilitiesImpl,
     PublishDiagnosticsParamsImpl,
-    CompletionOptionsImpl
+    CompletionOptionsImpl,
+    DiagnosticImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -83,16 +95,14 @@ import java.util {
 }
 import java.util.concurrent {
     CompletableFuture,
-    ConcurrentHashMap
+    ConcurrentSkipListMap,
+    ConcurrentSkipListSet
 }
 import java.util.concurrent.atomic {
     AtomicBoolean
 }
 import java.util.\ifunction {
     Consumer
-}
-import ceylon.logging {
-    error
 }
 
 class CeylonLanguageServer() satisfies LanguageServer {
@@ -101,22 +111,24 @@ class CeylonLanguageServer() satisfies LanguageServer {
     late Consumer<MessageParams> logMessage;
     late Consumer<MessageParams> showMessage;
     late Consumer<ShowMessageRequestParams> showMessageRequest;
-    late Directory rootDirectory;
+    late Directory? rootDirectory;
     variable JsonValue settings = null;
 
-    value compiling = AtomicBoolean(false);
-    value typeCheckQueue = CeylonMutableSet(ConcurrentHashMap.newKeySet<String>());
-    value textDocuments = CeylonMutableMap(ConcurrentHashMap<String, String>());
+    value compiling
+        =   AtomicBoolean(false);
+
+    value textDocuments
+        =   CeylonMutableMap(ConcurrentSkipListMap<String, String>(
+                    JavaComparator(uncurry(String.compare))));
+
+    value typeCheckQueue
+        =   CeylonMutableSet(ConcurrentSkipListSet<String>(
+                    JavaComparator(uncurry(String.compare))));
 
     value ceylonSettings
         =>  if (is JsonObject settings = settings)
             then settings.getObjectOrNull("ceylon")
             else null;
-
-    shared actual
-    void exit() {
-        log.info("exit called");
-    }
 
     shared actual
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
@@ -137,6 +149,7 @@ class CeylonLanguageServer() satisfies LanguageServer {
             }
         }
         else {
+            this.rootDirectory = null;
             log.info("no root path provided");
         }
 
@@ -153,9 +166,9 @@ class CeylonLanguageServer() satisfies LanguageServer {
     shared actual
     void onTelemetryEvent(Consumer<Object>? consumer) {}
 
-    shared actual
-    void shutdown()
-        =>  log.info("shutdown called");
+    exit() => log.info("exit called");
+
+    shutdown() => log.info("shutdown called");
 
     shared actual
     TextDocumentService textDocumentService => object
@@ -353,14 +366,24 @@ class CeylonLanguageServer() satisfies LanguageServer {
             CompletableFuture.runAsync(runnable {
                 void run() {
                     try {
-                        while (exists documentId = typeCheckQueue.first) {
-                            typeCheckQueue.remove(documentId);
-                            if (exists text = textDocuments[documentId]) {
-                                compileAndPublishDiagnostics(documentId, text);
-                            }
-                            else {
-                                log.error("no text existed for '``documentId``'");
-                            }
+                        // TODO For files that are not part of a module (which means not
+                        //      in a source directory, I guess), compile individually with
+                        //      compileAndPublishDiagnostics? Maybe only if there is no
+                        //      InitializeParams.rootPath? Perhaps parse, but don't
+                        //      typecheck? Or do typecheck so completion, etc, works,
+                        //      but don't report analysis errors?
+                        //
+                        //      If so, they should probably only be compiled when opened
+                        //      and changed, with their diagnostics being cleared when
+                        //      closed.
+
+                        // TODO Until the above, we should ignore files that are not in
+                        //      a source directory (or avoid having them added to the
+                        //      queue in the first place.)
+                        while (!typeCheckQueue.empty) {
+                            typeCheckQueue.clear();
+                            value listings = textDocuments.clone();
+                            compileModulesAndPublishDiagnostics(listings);
                         }
                     }
                     finally {
@@ -371,57 +394,98 @@ class CeylonLanguageServer() satisfies LanguageServer {
         }
     }
 
-    void compileAndPublishDiagnostics(String documentId, String documentText) {
+    void compileModulesAndPublishDiagnostics({<String->String>*} listings) {
+        ListMultimap<String,DiagnosticImpl> allDiagnostics;
+        // TODO Send error messages for all compile exceptions. Then, rethrow. Don't log
+        //      the exception; message tracer will do this. If "ReportableException",
+        //      don't show the exception type?
+        //
+        //      Actually, we should send error messages for all exceptions in
+        //      the MessageTracer, no?
+
         try {
-            value name = if (exists i = documentId.lastOccurrence('/'))
-                         then documentId[i+1...]
-                         else documentId;
-            value diagnostics = compileFile(name, documentText);
+             allDiagnostics = ArrayListMultimap { *compileModules(listings) };
+        }
+        catch (Throwable e) {
+            log.error("failed compile", e);
+
+            value sb = StringBuilder();
+            printStackTrace(e, sb.append);
+
+            value exceptionType
+                =   if (!e is ReportableException) then
+                        let (cn = className(e))
+                        cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
+                    else "";
+
+            showMessage.accept(newMessageParams {
+                message = "Compilation failed: ``exceptionType``\
+                           ``e.message.replace("\n", "; ")``\
+                           \n\n``sb.string``";
+                type = MessageType.error;
+            });
+            return;
+        }
+
+        // FIXME We have to send diags for *all* files, since we need to clear
+        // errors!!! Instead, we need to keep a list of files w/errors, to limit
+        // the work here.
+        for (documentId in listings.map(Entry.key)) {
+            value diagnostics = allDiagnostics.get(documentId);
             value p = PublishDiagnosticsParamsImpl();
             p.uri = toUri(documentId);
-            p.diagnostics =JavaList(diagnostics);
+            p.diagnostics = JavaList<DiagnosticImpl>(diagnostics);
             publishDiagnostics.accept(p);
-        }
-        catch (Exception | AssertionError e) {
-            publishDiagnostics.accept(
-                PublishDiagnosticsParamsImpl(toUri(documentId), JavaList(
-                    [newDiagnostic {
-                        message = e.string;
-                        severity = DiagnosticSeverity.error;
-                    }])
-                )
-            );
         }
     }
 
+    suppressWarnings("unusedDeclaration")
+    void compileAndPublishDiagnostics(String documentId, String documentText) {
+        value name = if (exists i = documentId.lastOccurrence('/'))
+                     then documentId[i+1...]
+                     else documentId;
+        value diagnostics = compileFile(name, documentText);
+        value p = PublishDiagnosticsParamsImpl();
+        p.uri = toUri(documentId);
+        p.diagnostics =JavaList(diagnostics);
+        publishDiagnostics.accept(p);
+    }
+
     String toDocumentIdString(String | Path uri) {
-        // FIXME what about multiple source directories?
-        //       for now, format is 'source/com/example/file.ceylon'
+        // Note that the source directory is included in the documentId. For
+        // example, 'source/com/example/file.ceylon', or if there is no root
+        // directory, '/path/to/file.ceylon'.
         value path
             =   if (is Path uri)
                     then uri
                 else if (uri.startsWith("file:///"))
-                    // we need the "right kind" of path
+                    // we need the right kind of Java nio path
                     then parsePath(uri[7...])
                 else parsePath(uri);
 
-        return path.relativePath(rootDirectory.path).string;
+        return if (exists rootDirectory = rootDirectory)
+            then path.relativePath(rootDirectory.path).string
+            else path.string;
     }
 
     //see(`function toDocumentIdString`)
     String toUri(String documentId)
-        =>  "file://" + rootDirectory.path.childPath(documentId)
-                .absolutePath.normalizedPath.string;
+        =>  if (exists rootDirectory = rootDirectory)
+            then "file://" + rootDirectory.path.childPath(documentId)
+                                .absolutePath.normalizedPath.string
+            else "file://" + documentId;
 
     void initializeDocuments(Directory rootDirectory) {
-        // TODO discover source directories based on .ceylon/config
-        //      and module.ceylon files.
+        // TODO discover source directories based on .ceylon/config,
+        //      defaulting to 'source/'
         value sourceDirectory = rootDirectory.path.childPath("source").resource;
         if (!is Directory sourceDirectory) {
             log.error("cannot found 'source' in the root path '``rootDirectory.path``'");
             return;
         }
         // now, read all '*.ceylon' and '*.dart' files into memory!
+        variable value count = 0;
+        variable value startMillis = system.milliseconds;
         sourceDirectory.path.visit(object extends Visitor() {
             shared actual void file(File file) {
                 value extension
@@ -431,10 +495,12 @@ class CeylonLanguageServer() satisfies LanguageServer {
                 if (extension in ["ceylon", "dart", "js", "java"]) {
                     value documentId = toDocumentIdString(file.path);
                     textDocuments.put(documentId, readFile(file));
-                    log.info("initializing file ``documentId``");
+                    count++;
                 }
             }
         });
+        log.info("initialized ``count`` files in '``sourceDirectory``' \
+                  in ``system.milliseconds - startMillis``ms");
     }
 }
 

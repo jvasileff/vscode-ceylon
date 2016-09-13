@@ -65,7 +65,7 @@ import java.io {
         virtualFiles = [virtualFile];
     };
 
-    return messages
+    return messages.map(Entry.item)
         .filter((m)
             =>  if (is UsageWarning m)
                 then !m.suppressed

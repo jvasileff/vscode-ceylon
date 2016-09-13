@@ -47,7 +47,10 @@ shared void run() {
 
     endpoint.setMessageTracer(
         object satisfies MessageTracer {
-            shared actual void onError(String? s, Throwable? throwable) {
+            shared actual void onError(String? s, variable Throwable? throwable) {
+                if (is AssertionException ae = throwable) {
+                    throwable = ae.cause;
+                }
                 log.error("(onError) ``s else ""``", throwable);
             }
             shared actual void onRead(Message? message, String? s) {

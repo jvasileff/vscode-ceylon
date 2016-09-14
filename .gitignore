@@ -8,6 +8,7 @@
 .exploded/
 .gradle/
 .packages
+.settings/
 build/
 classes/
 config.old

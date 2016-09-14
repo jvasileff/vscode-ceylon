@@ -164,7 +164,8 @@ import java.io {
         }
     }
 
-    value sourceFolders = sourceDirectories.collect(DirectoryVirtualFile);
+    value dirsWithoutTrailingSlash = sourceDirectories.map((d) => d[0:d.size-1]);
+    value sourceFolders = dirsWithoutTrailingSlash.collect(DirectoryVirtualFile);
     value moduleFilters = ["default", *dartCompatibleModules(sourceFolders)];
     log.debug("compiling with module filters: ``moduleFilters``");
 

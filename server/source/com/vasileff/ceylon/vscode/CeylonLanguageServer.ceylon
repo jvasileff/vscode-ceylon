@@ -122,6 +122,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
     late Directory? rootDirectory;
     variable JsonValue settings = null;
 
+    "The source directories relative to [[rootDirectory]]. Must end in a '/'."
+    variable [String*] sourceDirectories = ["source/"];
+
     value compiling
         =   AtomicBoolean(false);
 
@@ -143,6 +146,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         =>  if (is JsonObject settings = settings)
             then settings.getObjectOrNull("ceylon")
             else null;
+
+    function inSourceDirectory(String documentId)
+        =>  sourceDirectories.any((d) => documentId.startsWith(d));
 
     shared actual
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
@@ -200,8 +206,8 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         CompletableFuture<CompletionList> completion(TextDocumentPositionParams that) {
             value documentId = toDocumentIdString(that.textDocument.uri);
 
-            // TODO support source directories other than "source/"!
-            if (!documentId.startsWith("source/")) {
+            if (!inSourceDirectory(documentId)) {
+                // Senda an empty completion list for non-source files
                 value result = CompletionListImpl();
                 result.items = JavaList<CompletionItemImpl>([]);
                 return CompletableFuture.completedFuture<CompletionList>(result);
@@ -233,8 +239,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         void didChange(DidChangeTextDocumentParams that) {
             value documentId = toDocumentIdString(that.textDocument.uri);
 
-            // TODO support source directories other than "source/"!
-            if (!documentId.startsWith("source/")) {
+            if (!inSourceDirectory(documentId)) {
                 return;
             }
 
@@ -287,8 +292,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
             value documentId = toDocumentIdString(that.textDocument.uri);
             openDocuments.add(documentId);
 
-            // TODO support source directories other than "source/"!
-            if (!documentId.startsWith("source/")) {
+            if (!inSourceDirectory(documentId)) {
                 return;
             }
 
@@ -396,8 +400,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
             for (change in that.changes) {
                 value documentId = toDocumentIdString(change.uri);
-                // TODO support source directories other than "source/"!
-                if (!documentId.startsWith("source/")) {
+                if (!inSourceDirectory(documentId)) {
                     continue;
                 }
                 if (change.type == FileChangeType.deleted) {
@@ -541,8 +544,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         //      the MessageTracer, no?
 
         try {
-            // TODO support source directories other than "source/"!
-            allDiagnostics = ArrayListMultimap { *compileModules(["source"], listings) };
+            allDiagnostics = ArrayListMultimap {
+                *compileModules(sourceDirectories, listings)
+            };
         }
         catch (Throwable e) {
             log.error("failed compile");
@@ -620,30 +624,34 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
      Files outside of source directories are ignored. These will likely need to be
      loaded in [[TextDocumentService.didOpen]] if we add support for them."
     void initializeDocuments(Directory rootDirectory) {
-        // TODO support source directories other than "source/"!
-        value sourceDirectory = rootDirectory.path.childPath("source").resource;
-        if (!is Directory sourceDirectory) {
-            log.error("cannot found 'source' in the root path '``rootDirectory.path``'");
-            return;
-        }
-        // now, read all '*.ceylon' and '*.dart' files into memory!
-        variable value count = 0;
-        variable value startMillis = system.milliseconds;
-        sourceDirectory.path.visit(object extends Visitor() {
-            shared actual void file(File file) {
-                value extension
-                    =   if (exists dot = file.name.lastOccurrence('.'))
-                        then file.name[dot+1...]
-                        else "";
-                if (extension in ["ceylon", "dart", "js", "java"]) {
-                    value documentId = toDocumentIdString(file.path);
-                    textDocuments.put(documentId, readFile(file));
-                    count++;
-                }
+        for (relativeDirectory in sourceDirectories) {
+            value sourceDirectory
+                =   rootDirectory.path.childPath(relativeDirectory).resource;
+
+            if (!is Directory sourceDirectory) {
+                log.warn("cannot find '``relativeDirectory``' in the workspace \
+                          '``rootDirectory.path``'");
             }
-        });
-        log.info("initialized ``count`` files in '``sourceDirectory``' \
-                  in ``system.milliseconds - startMillis``ms");
+
+            // now, read all '*.ceylon' and '*.dart' files into memory!
+            variable value count = 0;
+            variable value startMillis = system.milliseconds;
+            sourceDirectory.path.visit(object extends Visitor() {
+                shared actual void file(File file) {
+                    value extension
+                        =   if (exists dot = file.name.lastOccurrence('.'))
+                            then file.name[dot+1...]
+                            else "";
+                    if (extension in ["ceylon", "dart", "js", "java"]) {
+                        value documentId = toDocumentIdString(file.path);
+                        textDocuments.put(documentId, readFile(file));
+                        count++;
+                    }
+                }
+            });
+            log.info("initialized ``count`` files in '``sourceDirectory``' \
+                      in ``system.milliseconds - startMillis``ms");
+        }
     }
 
     shared actual

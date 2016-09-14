@@ -183,13 +183,14 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                     =   CeylonIterable(DefaultToolOptions
                             .getCompilerSourceDirs(ceylonConfig));
 
-                value sourceDirectoryPaths
-                    =   sourceDirectoryJFiles.map((jfile)
-                        =>  parsePath(jfile.absolutePath).absolutePath.normalizedPath);
-
+                // getCompilerSourceDirs() seems to return relative paths,
+                // but just in case, lets calculate the full path and then
+                // relativize it
                 sourceDirectories
-                    =   sourceDirectoryPaths.collect((p)
-                        =>  p.relativePath(rootPath).string + "/");
+                    =   sourceDirectoryJFiles.collect((jFile)
+                        =>  rootPath.childPath(jFile.path)
+                                    .relativePath(rootPath)
+                                    .string + "/");
 
                 log.info("configured source directories: ``sourceDirectories``");
 

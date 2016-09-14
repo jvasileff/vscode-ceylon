@@ -16,9 +16,6 @@ import ceylon.interop.java {
     CeylonMutableSet,
     JavaComparator
 }
-import ceylon.logging {
-    debug
-}
 
 import com.vasileff.ceylon.dart.compiler {
     ReportableException
@@ -130,6 +127,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
     value textDocuments
         =   CeylonMutableMap(ConcurrentSkipListMap<String, String>(
+                    JavaComparator(uncurry(String.compare))));
+
+    value openDocuments
+        =   CeylonMutableSet(ConcurrentSkipListSet<String>(
                     JavaComparator(uncurry(String.compare))));
 
     // FIXME ConcurrentSkipListSet.clear() and addAll() are not thread safe, but we're
@@ -257,24 +258,54 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         }
 
         shared actual
-        void didClose(DidCloseTextDocumentParams that) {}
+        void didClose(DidCloseTextDocumentParams that) {
+            value documentId = toDocumentIdString(that.textDocument.uri);
+            openDocuments.remove(documentId);
+        }
 
         shared actual
         void didOpen(DidOpenTextDocumentParams that) {
-            if (log.enabled(debug)) {
-                value documentId = toDocumentIdString(that.textDocument.uri);
+            // Note that:
+            //
+            //  -   didOpen() is called before didChangeWatchedFiles() for new files
+            //
+            //  -   The text available in didOpen() and a possible immediately following
+            //      didChange() is the most recent available. Even for new files, quickly
+            //      made changes may be available in didOpen(), with the on-disk version
+            //      of course being empty
+            //
+            //  -   For renames, didOpen is called for the new name before the old file
+            //      is deleted in didChangeWatchedFiles. So, we'll let
+            //      didChangeWatchedFiles() make the call to queueDiagnotics() for new
+            //      files, in order to have a single call for the delete + add.
+            //
+            // We may be able to slightly improve the overall scheme by determining
+            // exactly what is available in didOpen() vs. didChange(), when one or both
+            // precede didChangeWatchedFiles(). This would help avoid an extra compile
+            // when didChange() occurs before didChangeWatchedFiles().
 
-                // TODO support source directories other than "source/"!
-                if (!documentId.startsWith("source/")) {
-                    return;
-                }
+            value documentId = toDocumentIdString(that.textDocument.uri);
+            openDocuments.add(documentId);
 
-                if (!textDocuments.defines(documentId)) {
-                    // we should be immediately followed by a didChangeWatchedFiles
-                    // message, where we'll create the new entry
-                    log.debug("didOpen for unrecognized file '``documentId``'; \
-                               must be a 'New File' operation from within the GUI");
+            // TODO support source directories other than "source/"!
+            if (!documentId.startsWith("source/")) {
+                return;
+            }
+
+            if (exists existingText = textDocuments[documentId]) {
+                // Update with the provided text and queue diagnistics if necessary.
+                if (!corresponding(existingText?.lines else [""],
+                                   that.textDocument.text.lines)) {
+                    textDocuments[documentId] = that.textDocument.text;
+                    queueDiagnotics(documentId);
                 }
+            }
+            else {
+                // New file. Save the text, but let the ensuing didChangeWatchedFiles()
+                // call queueDiagnotics(). This helps avoid an extra, early, and
+                // errant compile on file renames where didOpen() occurs for the new
+                // file before the old file is deleted.
+                textDocuments[documentId] = that.textDocument.text;
             }
         }
 
@@ -362,6 +393,8 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
         shared actual
         void didChangeWatchedFiles(DidChangeWatchedFilesParams that) {
+            variable value changedFiles = [] of {String*};
+
             for (change in that.changes) {
                 value documentId = toDocumentIdString(change.uri);
                 // TODO support source directories other than "source/"!
@@ -370,40 +403,76 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                 }
                 if (change.type == FileChangeType.deleted) {
                     value originalText = textDocuments.remove(documentId);
-                    // TODO this should be in a method
+                    log.debug("deleted file '``documentId``'");
                     if (originalText exists) {
-                        queueDiagnotics(documentId);
+                        log.debug("queueing diagnsotics for deleted file \
+                                   '``documentId``'");
+                        // clear diagnostics immediately to prevent clicks in the GUI
+                        // on diagnostics for files that don't exist
+                        clearDiagnosticsForDocumentId(documentId);
+                        changedFiles = changedFiles.follow(documentId);
                     }
                 }
                 else if (change.type == FileChangeType.created
                         || change.type == FileChangeType.changed) {
+
+                    if (openDocuments.contains(documentId)) {
+                        // If it's open, we already have the most recent contents
+                        // (what's on disk may be stale). But, we do need to call
+                        // queueDiagnostics for newly created files. See notes in
+                        // didOpen().
+                        //
+                        // Note that there's *still* a chance for a redundant compile with
+                        // didOpen() quickly followed by didChange(), and then finally
+                        // this didChangeWatchedFiles() call.
+                        log.debug("ignoring watched file change to already opened file \
+                                   '``documentId``'");
+                        changedFiles = changedFiles.follow(documentId);
+                        continue;
+                    }
+
                     // read or re-read from filesystem
                     value resource = parsePath(change.uri[7...]).resource;
                     switch (resource)
                     case (is File) {
                         value newText = readFile(resource);
                         value originalText = textDocuments.put(documentId, newText);
-                        // TODO this should be in a method
                         if (!eq(newText, originalText)) {
-                            queueDiagnotics(documentId);
+                            changedFiles = changedFiles.follow(documentId);
                         }
                     }
                     case (is Directory) {
                         // It's a directory named like 'x.ceylon'. Ignore.
                     }
-                    case (is Nil | Link) {
+                    case (is Nil) {
+                        // A file can actually be changed and deleted in the same
+                        // message! So don't treat this as an error
+                        log.warn {
+                            "unable to read watched file '``change.uri``'";
+                        };
+                    }
+                    case (is Link) {
                         throw ReportableException {
                             "unable to read watched file '``change.uri``'";
                         };
                     }
                 }
             }
+
+            queueDiagnotics(*changedFiles);
         }
 
         shared actual
         CompletableFuture<List<out SymbolInformation>>? symbol(WorkspaceSymbolParams that)
             =>  null;
     };
+
+    void clearDiagnosticsForDocumentId(String documentId) {
+        value p = PublishDiagnosticsParamsImpl();
+        p.uri = toUri(documentId);
+        p.diagnostics = JavaList<DiagnosticImpl>([]);
+        publishDiagnostics.accept(p);
+    }
 
     void queueDiagnotics(String* documentIds) {
         value added = typeCheckQueue.addAll(documentIds);

@@ -15,10 +15,13 @@ import ceylon.interop.java {
     CeylonMutableMap,
     CeylonMutableSet,
     JavaComparator,
-    JavaIterable,
     CeylonIterable
 }
 
+import com.redhat.ceylon.common.config {
+    DefaultToolOptions,
+    CeylonConfig
+}
 import com.vasileff.ceylon.dart.compiler {
     ReportableException
 }
@@ -116,10 +119,6 @@ import java.util.concurrent.atomic {
 }
 import java.util.\ifunction {
     Consumer
-}
-import com.redhat.ceylon.common.config {
-    DefaultToolOptions,
-    CeylonConfig
 }
 
 class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {

@@ -9,6 +9,9 @@ import ceylon.interop.java {
 import com.redhat.ceylon.cmr.ceylon {
     CeylonUtils
 }
+import com.redhat.ceylon.common.config {
+    CeylonConfig
+}
 import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
 }
@@ -49,13 +52,8 @@ import java.io {
     InputStream
 }
 
-[<String->DiagnosticImpl>*] compileModules({<String -> String>*} listings1 = {}) {
-    // TODO support source directories other than "source/"!
-    value listings = listings1.map((path->text) {
-        // remove leading "source/" from listings.
-        assert (exists slash = path.firstOccurrence('/'));
-        return path[slash+1...]->text;
-    });
+[<String->DiagnosticImpl>*] compileModules(
+        [String*] sourceDirectories, {<String -> String>*} listings) {
 
     "The full path, parent directory, and file."
     function pathParts(String path) {
@@ -166,24 +164,22 @@ import java.io {
         }
     }
 
-    value moduleFilters = ["default", *dartCompatibleModules(DirectoryVirtualFile(""))];
+    value sourceFolders = sourceDirectories.collect(DirectoryVirtualFile);
+    value moduleFilters = ["default", *dartCompatibleModules(sourceFolders)];
     log.debug("compiling with module filters: ``moduleFilters``");
 
     value [cuList, status, messages] = compileDartSP {
         moduleFilters = moduleFilters;
-        virtualFiles = [DirectoryVirtualFile("")];
+        virtualFiles = sourceFolders;
     };
 
-    // TODO support source directories other than "source/"!
     return messages
-        .filter((_->m)
+        .filter((_ -> m)
             =>  if (is UsageWarning m)
                 then !m.suppressed
                 else true)
-        // TODO should there be a limit?
-        //.take(500)
         .collect((node->message)
-            =>  "source/" + node.unit.fullPath -> newDiagnostic {
+            =>  node.unit.fullPath -> newDiagnostic {
                     message = message.message;
                     range = rangeForMessage(message);
                     severity = message.warning
@@ -192,7 +188,7 @@ import java.io {
                 });
 }
 
-[<VirtualFile->VirtualFile>*] flattenVirtualFiles(VirtualFile folder) {
+[VirtualFile*] flattenVirtualFiles(VirtualFile folder) {
     assert (folder.folder);
 
     {VirtualFile*} folderAndDescendentFolders(VirtualFile folder)
@@ -203,46 +199,60 @@ import java.io {
 
     return [ for (f in folderAndDescendentFolders(folder))
              for (file in f.children)
-             if (!file.folder) f -> file ];
+             if (!file.folder) file ];
 }
 
-[String*] dartCompatibleModules(VirtualFile rootFolder) {
-    value ctx = Context(CeylonUtils.repoManager().buildManager(), VFS());
-    value pus = PhasedUnits(ctx);
-    value moduleSourceMapper = pus.moduleSourceMapper;
+[String*] dartCompatibleModules([VirtualFile*] sourceFolders) {
+
+    "A dummy, empty config CeylonConfig(). We don't need overrides.xml to parse
+     module.ceylon, and the list of source folders has been provided."
+    value ceylonConfig
+        =   CeylonConfig();
+
+    value repositoryManager
+        =   CeylonUtils.repoManager().config(CeylonConfig()).buildManager();
+
+    value context
+        =   Context(repositoryManager, VFS());
+
+    value phasedUnits
+        =   PhasedUnits(context);
+
+    value moduleSourceMapper
+        =   phasedUnits.moduleSourceMapper;
 
     value moduleDescriptors
-        =   flattenVirtualFiles(rootFolder).select((folder->file)
-            =>  file.name == "module.ceylon");
+        =   sourceFolders.flatMap((sourceFolder)
+            =>  flattenVirtualFiles(sourceFolder)
+                    .filter((file) => file.name == "module.ceylon")
+                    .map((file) => sourceFolder->file));
 
-    // parse all module.ceylon files
-    for (folder->file in moduleDescriptors) {
+    // parse all found module.ceylon descriptors
+    for (sourceFolder -> file in moduleDescriptors) {
         log.debug("processing module descriptor '``file.path``'");
         for (part in file.path.split('/'.equals).exceptLast) {
             moduleSourceMapper.push(part);
         }
         moduleSourceMapper.visitModuleFile();
-        pus.parseUnit(file, folder);
+        phasedUnits.parseUnit(file, sourceFolder);
     }
 
-    // Obtain Modules by visiting the phased units.
-    //
-    // Note: calling visitRemainingModulePhase() on the PhasedUnits doesn't appear
-    // necessary; the native() annotations are already set. So we'll just call
-    // visitSrcModulePhase() and be done.
-    value modules = CeylonIterable(pus.phasedUnits).map<Module?>((pu)
-        =>  pu.visitSrcModulePhase() else null).coalesced;
+    "Typechecker Modules, obtained by visiting the phased units"
+    value modules
+        =   CeylonIterable(phasedUnits.phasedUnits).map<Module?>((pu)
+            =>  pu.visitSrcModulePhase() else null).coalesced;
 
-    // Include all modules that are not explicitly excluded, since parse or other errors
-    // may make it impossible to determine compatibility
     function dartSupported(Module m)
         =>  m.nativeBackends.none() || m.nativeBackends.supports(dartBackend);
 
+    "All modules based on the module descriptor files we found."
     value allModules
-        =   moduleDescriptors.map(Entry.key)
-                .map(VirtualFile.path)
-                .map((name) => ".".join(name.split('/'.equals)));
+        =   moduleDescriptors
+                .map((sourceFolder->file) => file.getRelativePath(sourceFolder))
+                .map((name) => ".".join(name.split('/'.equals).exceptLast));
 
+    "All modules that are not explicitly excluded, since parse or other errors
+     may make it impossible to determine compatibility, and when in doubt, include."
     value excludes
         =   modules.filter(not(dartSupported)).collect(Module.nameAsString);
 

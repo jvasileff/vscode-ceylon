@@ -542,7 +542,8 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         //      the MessageTracer, no?
 
         try {
-             allDiagnostics = ArrayListMultimap { *compileModules(listings) };
+            // TODO support source directories other than "source/"!
+            allDiagnostics = ArrayListMultimap { *compileModules(["source"], listings) };
         }
         catch (Throwable e) {
             log.error("failed compile");
@@ -620,8 +621,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
      Files outside of source directories are ignored. These will likely need to be
      loaded in [[TextDocumentService.didOpen]] if we add support for them."
     void initializeDocuments(Directory rootDirectory) {
-        // TODO discover source directories based on .ceylon/config,
-        //      defaulting to 'source/'
+        // TODO support source directories other than "source/"!
         value sourceDirectory = rootDirectory.path.childPath("source").resource;
         if (!is Directory sourceDirectory) {
             log.error("cannot found 'source' in the root path '``rootDirectory.path``'");

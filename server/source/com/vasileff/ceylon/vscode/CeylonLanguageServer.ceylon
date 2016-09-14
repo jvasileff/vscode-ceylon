@@ -294,8 +294,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
 
             if (exists existingText = textDocuments[documentId]) {
                 // Update with the provided text and queue diagnistics if necessary.
-                if (!corresponding(existingText?.lines else [""],
-                                   that.textDocument.text.lines)) {
+                if (!corresponding(existingText.lines, that.textDocument.text.lines)) {
                     textDocuments[documentId] = that.textDocument.text;
                     queueDiagnotics(documentId);
                 }
@@ -475,7 +474,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
     }
 
     void queueDiagnotics(String* documentIds) {
-        value added = typeCheckQueue.addAll(documentIds);
+        typeCheckQueue.addAll(documentIds);
         launchCompiler();
     }
 

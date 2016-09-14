@@ -17,11 +17,21 @@ import java.net {
     Socket
 }
 
-shared void run() {
-    setLogPriority(process.arguments[1]);
+shared void run()
+    =>  runApp(process.arguments);
+
+shared void runIDE()
+    =>  runApp {
+            process.readLine()
+                ?.split(Character.whitespace)
+                ?.sequence() else [];
+        };
+
+void runApp([String*] arguments) {
+    setLogPriority(arguments[1]);
 
     value port
-        =   if (exists port = process.arguments[0])
+        =   if (exists port = arguments[0])
             then parseInteger(port)
             else null;
 

@@ -14,7 +14,9 @@ import ceylon.interop.java {
     JavaList,
     CeylonMutableMap,
     CeylonMutableSet,
-    JavaComparator
+    JavaComparator,
+    JavaIterable,
+    CeylonIterable
 }
 
 import com.vasileff.ceylon.dart.compiler {
@@ -98,6 +100,9 @@ import io.typefox.lsapi.services.transport.trace {
     MessageTracer
 }
 
+import java.io {
+    JFile=File
+}
 import java.util {
     List
 }
@@ -111,6 +116,10 @@ import java.util.concurrent.atomic {
 }
 import java.util.\ifunction {
     Consumer
+}
+import com.redhat.ceylon.common.config {
+    DefaultToolOptions,
+    CeylonConfig
 }
 
 class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
@@ -161,11 +170,39 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
             value rootDirectory = rootPath.resource;
             if (is Directory rootDirectory) {
                 this.rootDirectory = rootDirectory;
+
+                // setup source directories
+
+                // TODO make sure the compiler use this config too
+                //      Watch .ceylon/config, update the source dir list and rebuild
+                //      textDocuments if dirs change
+
+                value ceylonConfig
+                    =   CeylonConfig.createFromLocalDir(JFile(that.rootPath));
+
+                value sourceDirectoryJFiles
+                    =   CeylonIterable(DefaultToolOptions
+                            .getCompilerSourceDirs(ceylonConfig));
+
+                value sourceDirectoryPaths
+                    =   sourceDirectoryJFiles.map((jfile)
+                        =>  parsePath(jfile.absolutePath).absolutePath.normalizedPath);
+
+                sourceDirectories
+                    =   sourceDirectoryPaths.collect((p)
+                        =>  p.relativePath(rootPath).string + "/");
+
+                log.info("configured source directories: ``sourceDirectories``");
+
+                // read sourcefiles into memory
                 initializeDocuments(rootDirectory);
+
+                // launch initial compile
                 queueDiagnotics(*textDocuments.keys);
             }
             else {
-                log.error("the root path '``rootPathString``' is not a directory");
+                throw ReportableException(
+                        "the root path '``rootPathString``' is not a directory");
             }
         }
         else {

@@ -20,12 +20,14 @@ import java.net {
 shared void run()
     =>  runApp(process.arguments);
 
-shared void runIDE()
-    =>  runApp {
-            process.readLine()
-                ?.split(Character.whitespace)
-                ?.sequence() else [];
-        };
+shared void runIDE() {
+    process.write("Enter space separated arguments: ");
+    runApp {
+        process.readLine()
+            ?.split(Character.whitespace)
+            ?.sequence() else [];
+    };
+}
 
 void runApp([String*] arguments) {
     setLogPriority(arguments[1]);

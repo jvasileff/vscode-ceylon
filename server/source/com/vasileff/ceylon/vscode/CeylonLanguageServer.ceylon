@@ -132,6 +132,8 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         =   CeylonMutableMap(ConcurrentSkipListMap<String, String>(
                     JavaComparator(uncurry(String.compare))));
 
+    // FIXME ConcurrentSkipListSet.clear() and addAll() are not thread safe, but we're
+    //       using it as if they were
     value typeCheckQueue
         =   CeylonMutableSet(ConcurrentSkipListSet<String>(
                     JavaComparator(uncurry(String.compare))));
@@ -153,7 +155,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
             if (is Directory rootDirectory) {
                 this.rootDirectory = rootDirectory;
                 initializeDocuments(rootDirectory);
-                textDocuments.each((documentId->_) => queueDiagnotics(documentId));
+                queueDiagnotics(*textDocuments.keys);
             }
             else {
                 log.error("the root path '``rootPathString``' is not a directory");
@@ -403,8 +405,8 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
             =>  null;
     };
 
-    void queueDiagnotics(String documentId) {
-        typeCheckQueue.add(documentId);
+    void queueDiagnotics(String* documentIds) {
+        value added = typeCheckQueue.addAll(documentIds);
         launchCompiler();
     }
 

@@ -211,7 +211,7 @@ import java.io {
         =   CeylonConfig();
 
     value repositoryManager
-        =   CeylonUtils.repoManager().config(CeylonConfig()).buildManager();
+        =   CeylonUtils.repoManager().config(ceylonConfig).buildManager();
 
     value context
         =   Context(repositoryManager, VFS());

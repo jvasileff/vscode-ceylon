@@ -1,10 +1,10 @@
-
 [defaults]
 offline=false
 flatclasspath=false
 autoexportmavendependencies=true
 
 [repositories]
+output=../client/out/modules
+lookup=../client/out/modules
 lookup=../client/lib
 remote=aether:settings.xml
-output=../client/out/modules

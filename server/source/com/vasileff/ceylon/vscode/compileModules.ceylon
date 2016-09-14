@@ -51,6 +51,9 @@ import java.io {
     ByteArrayInputStream,
     InputStream
 }
+import ceylon.logging {
+    debug
+}
 
 [<String->DiagnosticImpl>*] compileModules(
         [String*] sourceDirectories, {<String -> String>*} listings) {
@@ -240,8 +243,20 @@ import java.io {
 
     "Typechecker Modules, obtained by visiting the phased units"
     value modules
-        =   CeylonIterable(phasedUnits.phasedUnits).map<Module?>((pu)
+        =   CeylonIterable(phasedUnits.phasedUnits).collect<Module?>((pu)
             =>  pu.visitSrcModulePhase() else null).coalesced;
+
+    for (pu in phasedUnits.phasedUnits) {
+        // necessary to fill in the module dependencies, which we'll want to use
+        pu.visitRemainingModulePhase();
+    }
+
+    if (log.enabled(debug)) {
+        for (m in modules) {
+            log.debug("Module dependencies for ``m``: \
+                       ``[for (i in m.imports) i.\imodule]``");
+        }
+    }
 
     function dartSupported(Module m)
         =>  m.nativeBackends.none() || m.nativeBackends.supports(dartBackend);

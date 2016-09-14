@@ -2,9 +2,13 @@
 offline=false
 flatclasspath=false
 autoexportmavendependencies=true
+encoding=UTF-8
 
 [repositories]
-output=../client/out/modules
-lookup=../client/out/modules
+output=./modules
 lookup=../client/lib
 remote=aether:settings.xml
+
+[compiler]
+source=source
+resource=resource

@@ -183,14 +183,34 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                     =   CeylonIterable(DefaultToolOptions
                             .getCompilerSourceDirs(ceylonConfig));
 
-                // getCompilerSourceDirs() seems to return relative paths,
-                // but just in case, lets calculate the full path and then
-                // relativize it
+                // getCompilerSourceDirs() wraps what was specified .ceylon/config which
+                // may include things like './', or may even be an absolute path. So,
+                // turn it into an absolute path, and then relativize.
                 sourceDirectories
-                    =   sourceDirectoryJFiles.collect((jFile)
-                        =>  rootPath.childPath(jFile.path)
-                                    .relativePath(rootPath)
-                                    .string + "/");
+                    =   sourceDirectoryJFiles.map((jFile) {
+                            value relativePath
+                                =   rootPath.childPath(jFile.path)
+                                        .absolutePath.normalizedPath
+                                        .relativePath(rootPath)
+                                        .string + "/";
+                            if (relativePath.startsWith(".")) {
+                                // This can happen when the source path involves symbolic
+                                // links. We could resolve the source path and try again,
+                                // but not worth it. (Note that VSCode tends to resolve
+                                // links when providing 'that.rootPath'.)
+                                value message
+                                    =   "unable to relativize source directory \
+                                         '``jFile``' to the workspace path \
+                                         '``rootPathString``'; see .ceylon/config";
+                                showMessage.accept(newMessageParams {
+                                    message = message;
+                                    type = MessageType.error;
+                                });
+                                log.error(message);
+                                return null;
+                            }
+                            return relativePath;
+                        }).coalesced.sequence();
 
                 log.info("configured source directories: ``sourceDirectories``");
 

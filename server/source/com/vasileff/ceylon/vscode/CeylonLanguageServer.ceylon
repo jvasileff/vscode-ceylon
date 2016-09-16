@@ -299,6 +299,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
         shared actual
         void didChange(DidChangeTextDocumentParams that) {
+            if (!that.textDocument.uri.startsWith("file:")) {
+                return;
+            }
+
             value documentId = toDocumentIdString(that.textDocument.uri);
 
             if (!inSourceDirectory(documentId)) {
@@ -326,12 +330,20 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
         shared actual
         void didClose(DidCloseTextDocumentParams that) {
+            if (!that.textDocument.uri.startsWith("file:")) {
+                return;
+            }
+
             value documentId = toDocumentIdString(that.textDocument.uri);
             openDocuments.remove(documentId);
         }
 
         shared actual
         void didOpen(DidOpenTextDocumentParams that) {
+            if (!that.textDocument.uri.startsWith("file:")) {
+                return;
+            }
+
             // Note that:
             //
             //  -   didOpen() is called before didChangeWatchedFiles() for new files
@@ -467,6 +479,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
             variable value changedFiles = [] of {String*};
 
             for (change in that.changes) {
+                if (!change.uri.startsWith("file:")) {
+                    continue;
+                }
+
                 value documentId = toDocumentIdString(change.uri);
                 if (!inSourceDirectory(documentId)) {
                     continue;

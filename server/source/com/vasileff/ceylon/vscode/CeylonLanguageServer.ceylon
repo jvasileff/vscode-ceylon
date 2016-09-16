@@ -92,7 +92,8 @@ import io.typefox.lsapi.impl {
     CompletionOptionsImpl,
     DiagnosticImpl,
     CompletionListImpl,
-    CompletionItemImpl
+    CompletionItemImpl,
+    MessageParamsImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -123,6 +124,9 @@ import java.util.\ifunction {
 }
 import com.redhat.ceylon.model.typechecker.model {
     Module
+}
+import ceylon.logging {
+    warn
 }
 
 class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContext {
@@ -207,10 +211,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                                     =   "unable to relativize source directory \
                                          '``jFile``' to the workspace path \
                                          '``rootPathString``'; see .ceylon/config";
-                                showMessage.accept(newMessageParams {
-                                    message = message;
-                                    type = MessageType.error;
-                                });
+                                showError(message);
                                 log.error(message);
                                 return null;
                             }
@@ -659,12 +660,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                          cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
                     else "";
 
-            showMessage.accept(newMessageParams {
-                message = "Compilation failed: ``exceptionType``\
-                           ``e.message.replace("\n", "; ")``\
-                           \n\n``sb.string``";
-                type = MessageType.error;
-            });
+            showError("Compilation failed: ``exceptionType``\
+                       ``e.message.replace("\n", "; ")``\
+                       \n\n``sb.string``");
 
             // wrap, so we don't re-report to the user
             throw ReportedException(e);
@@ -792,12 +790,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                              cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
                         else "";
 
-                showMessage.accept(newMessageParams {
-                    message = "``exceptionType``\
-                               ``unwrapped.message.replace("\n", "; ")``\
-                               \n\n``unwrapped.string``";
-                    type = MessageType.error;
-                });
+                showError("``exceptionType``\
+                           ``unwrapped.message.replace("\n", "; ")``\
+                           \n\n``unwrapped.string``");
             }
             catch (AssertionError | Exception e) {
                 // Oh well!
@@ -819,6 +814,29 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         value mm = message?.string else "<null>";
         value ss = s else "<null>";
         log.trace(()=>"(onWrite) ``mm``, ``ss``");
+    }
+
+    suppressWarnings("unusedDeclaration")
+    void showInfo(String text) {
+        value messageParams = MessageParamsImpl();
+        messageParams.message = text;
+        messageParams.type = MessageType.info;
+        showMessage.accept(messageParams);
+    }
+
+    void showError(String text) {
+        value messageParams = MessageParamsImpl();
+        messageParams.message = text;
+        messageParams.type = MessageType.error;
+        showMessage.accept(messageParams);
+    }
+
+    suppressWarnings("unusedDeclaration")
+    void showWarning(String text) {
+        value messageParams = MessageParamsImpl();
+        messageParams.message = text;
+        messageParams.type = MessageType.warning;
+        showMessage.accept(messageParams);
     }
 }
 

@@ -229,6 +229,8 @@ import java.io {
     if (messages.map(Entry.item).every(Message.warning)) {
         context.moduleCache = map {
             for (m in moduleManager.modules.listOfModules)
+            // empty or invalid module.ceylon descriptors may have nulls
+            if (m.nameAsString exists && m.version exists)
             (m.nameAsString + "/" + m.version)->m
         };
     }

@@ -371,6 +371,12 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                 // errant compile on file renames where didOpen() occurs for the new
                 // file before the old file is deleted.
                 textDocuments[documentId] = that.textDocument.text;
+                // FIXME adding the line below, because what's document above doesn't
+                //       work well for open file saves
+                // FIXME 2 why "errant compile" in the note above!? Oh, actually, it was
+                //          prob that for renames we would wind up with bogus duplicate
+                //          declaration errors while we temp. have both files.... So, ugh.
+                queueDiagnotics(documentId);
             }
         }
 
@@ -489,9 +495,15 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                         // Note that there's *still* a chance for a redundant compile with
                         // didOpen() quickly followed by didChange(), and then finally
                         // this didChangeWatchedFiles() call.
-                        log.debug("ignoring watched file change to already opened file \
-                                   '``documentId``'");
-                        changedFiles = changedFiles.follow(documentId);
+
+                        // FIXME well... this happens on saves of open files too.
+                        //       so we can't queue diagnostics here, redundantly.
+                        // FIXME review the fix of just doing the alert in didOpen. Look
+                        //       again and see if didChange() can help with the new file
+                        //       issue.
+                        log.debug("ignoring FileChangeType.changed message for already \
+                                   opened file '``documentId``'");
+                        // FIXME removing: changedFiles = changedFiles.follow(documentId);
                         continue;
                     }
 

@@ -33,7 +33,8 @@ import com.vasileff.ceylon.vscode.internal {
     flattenVirtualFiles,
     dartCompatibleModules,
     moduleNameForSourceFile,
-    moduleNameForDocumentId
+    moduleNameForDocumentId,
+    visibleModules
 }
 
 import io.typefox.lsapi {
@@ -52,7 +53,7 @@ import java.io {
 [[String*], [<String->DiagnosticImpl>*]] compileModules(
         [String*] sourceDirectories,
         {<String -> String>*} listings,
-        [String*] changedDocs,
+        [String*] changedDocumentIds,
         LSContext context) {
 
     "The full path, parent directory, and file."
@@ -164,68 +165,89 @@ import java.io {
         }
     }
 
-    value dirsWithoutTrailingSlash = sourceDirectories.map((d) => d[0:d.size-1]);
-    value sourceFolders = dirsWithoutTrailingSlash.collect(DirectoryVirtualFile);
-    value modules = modulesFromModuleDescriptors(sourceFolders);
-    value modulesForBackend = dartCompatibleModules(modules)
-            .collect((Module.nameAsString));
+    value dirsWithoutTrailingSlash
+        =   sourceDirectories.map((d) => d[0:d.size-1]);
 
-    // Proof of Concept Module caching
+    value sourceVirtualFileFolders
+        =   dirsWithoutTrailingSlash.collect(DirectoryVirtualFile);
+
+    value allSourceModules
+        =   modulesFromModuleDescriptors(sourceVirtualFileFolders);
+
+    value allSourceModuleNames
+        =   allSourceModules.collect(Module.nameAsString);
+
+    value moduleNamesForBackend
+        =   dartCompatibleModules(allSourceModules).collect((Module.nameAsString));
+
+    // Compile modules for the backend including:
     //
-    // Compile:
-    //      - The default module and
-    //      - modulesForBackend that are
-    //          - not cached, or
-    //          - have changed files
+    //      - the default module
+    //      - modules that aren't cached
+    //      - modules with changed files
+    //      - modules with visibility to modules with changed files
 
-    value modulesNotCached
-        =>  modulesForBackend.select {
-                (moduleName) => context.moduleCache.keys.every {
-                    (nameAndVersion) => !nameAndVersion.startsWith(moduleName + "/");
-                };
-            };
-
-    value modulesWithChangedFiles
-        =>  changedDocs
+    value moduleNamesWithChangedFiles
+        =>  changedDocumentIds
                 .map {
                     (documentId) => moduleNameForDocumentId {
-                        moduleNames = modulesForBackend;
+                        moduleNames = moduleNamesForBackend;
                         sourceDirectories = context.sourceDirectories;
                         documentId = documentId;
                     };
                 }.coalesced.distinct.sequence();
 
-    value modulesToCompile
-        =>  ["default", *modulesNotCached.chain(modulesWithChangedFiles)];
+    value cacheAfterEvictions
+        // must evict w/o inspecting version (iow, evict aggressively)
+        =   map(context.moduleCache.filter((nameAndVersion -> m) {
+                if (!m.nameAsString in allSourceModuleNames) {
+                    // We don't have source code for it, so keep it.
+                    //
+                    // Note: this is actually safe because if we *previously* has source
+                    // code for some module that was then changed or deleted, it would
+                    // have been evicted at that time. So if we don't have source now,
+                    // it couldn't have been loaded from source.
+                    return true;
+                }
+                if (visibleModules(m).map(Module.nameAsString)
+                        .containsAny(moduleNamesWithChangedFiles)) {
+                    // the module can see one of the changed modules; evict it
+                    return false;
+                }
+                return true; // keep it
+            }));
 
-    "The module cache to use, which excludes modules we are about to compile."
-    value moduleCache
-        =   map(context.moduleCache.filterKeys {
-                (nameAndVersion) => !modulesToCompile.any {
-                    (moduleName) => nameAndVersion.startsWith(moduleName + "/");
+    "Compile the default module and all modules for this backend that aren't cached."
+    value moduleNamesToCompile
+        =>  ["default",
+             *moduleNamesForBackend.select {
+                (moduleName) => cacheAfterEvictions.keys.every {
+                    (nameAndVersion) => !nameAndVersion.startsWith(moduleName + "/");
                 };
-            });
+            }];
 
-    log.debug("changedDocs: ``changedDocs``");
-    log.debug("moduleCache.keys: ``moduleCache.keys.sequence()``");
-    log.debug("modulesForBackend: ``modulesForBackend``");
-    log.debug("modulesNotCached: ``modulesNotCached``");
-    log.debug("modulesWithChangedFiles: ``modulesWithChangedFiles``");
-    log.debug("modulesToCompile: ``modulesToCompile``");
+    log.debug("changedDocumentIds: ``changedDocumentIds``");
+    log.debug("moduleNamesWithChangedFiles: ``moduleNamesWithChangedFiles``");
+    log.debug("moduleNamesForBackend: ``moduleNamesForBackend``");
+    log.debug("originalCache.keys: ``context.moduleCache.keys.sequence()``");
+    log.debug("cacheAfterEvictions.keys: ``cacheAfterEvictions.keys``");
+    log.debug("moduleNamesToCompile: ``moduleNamesToCompile``");
 
-    for (k->m in moduleCache) {
+    for (k->m in cacheAfterEvictions) {
         // TODO clear the type cache? Disable the cache if we do concurrent builds?
         m.cache.clear();
     }
 
     value [cuList, status, messages, moduleManager] = compileDartSP {
-        moduleFilters = modulesToCompile;
-        virtualFiles = sourceFolders;
-        moduleCache = moduleCache;
+        moduleFilters = moduleNamesToCompile;
+        virtualFiles = sourceVirtualFileFolders;
+        moduleCache = cacheAfterEvictions;
     };
 
-    // if no errors, cache the modules
-    // TODO try cache modules that have no errors?
+    // If no errors, cache the modules, otherwise, replace with evicted cache
+    // TODO at least cache modules that compiled w/o errors. The dependant modules
+    //      may fail, even though the file being edited compiles. So we don't want
+    //      to re-compile the dependency for every edit until the dependant is fixed!
     if (messages.map(Entry.item).every(Message.warning)) {
         context.moduleCache = map {
             for (m in moduleManager.modules.listOfModules)
@@ -234,29 +256,27 @@ import java.io {
             (m.nameAsString + "/" + m.version)->m
         };
     }
+    else {
+        context.moduleCache = cacheAfterEvictions;
+    }
 
-    // Determine what files we actually compiled so that the caller will know what
-    // diagnostics can be cleared. This includes all files in all source directories
-    // that are not in excluded modules.
-
-    value allModuleNames
-        =   modules.collect(Module.nameAsString);
+    // Now, determine what files we actually compiled so that the caller will know what
+    // diagnostics can be cleared. This includes all files in all source directories that
+    // are not in excluded modules.
 
     value skippedModuleNames
-        =   allModuleNames.filter(not(modulesToCompile.contains));
+        =   allSourceModuleNames.filter(not(moduleNamesToCompile.contains));
 
     value compiledDocumentIds
-        =   sourceFolders.flatMap {
+        =   sourceVirtualFileFolders.flatMap {
                 (folder) => flattenVirtualFiles(folder).map {
                     (file) => file.path -> file.getRelativePath(folder);
                 };
             }.filter {
                 (documentId -> sourceFile) => !skippedModuleNames.contains {
-                    moduleNameForSourceFile(allModuleNames, sourceFile) else "!";
+                    moduleNameForSourceFile(allSourceModuleNames, sourceFile) else "!";
                 };
             }.collect(Entry.key);
-
-    log.debug("compiledDocumentIds = ``compiledDocumentIds``");
 
     return [
         compiledDocumentIds,

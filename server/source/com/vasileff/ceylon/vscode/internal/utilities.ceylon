@@ -9,7 +9,8 @@ import com.vasileff.ceylon.dart.compiler {
     dartBackend
 }
 import com.redhat.ceylon.model.typechecker.model {
-    Module
+    Module,
+    ModuleImport
 }
 import ceylon.logging {
     debug
@@ -25,6 +26,9 @@ import ceylon.interop.java {
 import com.redhat.ceylon.compiler.typechecker.io {
     VirtualFile,
     VFS
+}
+import ceylon.collection {
+    HashSet
 }
 
 shared
@@ -154,4 +158,33 @@ shared
     allModules.collect((moduleNameParts)
         =>  phasedUnits.moduleManager.getOrCreateModule(
                 JavaList(moduleNameParts.collect(javaString)), null));
+}
+
+"All modules that are visible from the given module. A module is visible from a
+ module if it is:
+
+ - the module
+ - a direct import of the module
+ - a `shared` direct import of an import of a visible module"
+shared
+{Module+} visibleModules(Module m)
+    =>  let (visited = HashSet<Module> { m })
+        {
+            m,
+            *CeylonIterable(m.imports)
+                .map(ModuleImport.\imodule)
+                .flatMap((m) => exportedDependencies(m, visited))
+                .follow(m)
+        };
+
+{Module*} exportedDependencies(Module m, HashSet<Module> visited) {
+    visited.add(m);
+    return {
+        m,
+        *CeylonIterable(m.imports)
+            .filter(ModuleImport.export)
+            .map(ModuleImport.\imodule)
+            .filter(not(visited.contains))
+            .flatMap((m) => exportedDependencies(m, visited))
+    };
 }

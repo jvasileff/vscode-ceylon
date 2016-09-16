@@ -38,7 +38,8 @@ import com.vasileff.ceylon.vscode.internal {
     setLogPriority,
     newMessageParams,
     ReportedException,
-    eq
+    eq,
+    LSContext
 }
 
 import io.typefox.lsapi {
@@ -120,18 +121,22 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
+import com.redhat.ceylon.model.typechecker.model {
+    Module
+}
 
-class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
+class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContext {
 
-    late Consumer<PublishDiagnosticsParams> publishDiagnostics;
-    late Consumer<MessageParams> logMessage;
-    late Consumer<MessageParams> showMessage;
-    late Consumer<ShowMessageRequestParams> showMessageRequest;
-    late Directory? rootDirectory;
-    variable JsonValue settings = null;
+    // FIXME this is obviously just for initial testing
+    shared actual variable Map<String, Module> moduleCache = emptyMap;
 
-    "The source directories relative to [[rootDirectory]]. Must end in a '/'."
-    variable [String*] sourceDirectories = ["source/"];
+    shared actual late Consumer<PublishDiagnosticsParams> publishDiagnostics;
+    shared actual late Consumer<MessageParams> logMessage;
+    shared actual late Consumer<MessageParams> showMessage;
+    shared actual late Consumer<ShowMessageRequestParams> showMessageRequest;
+    shared actual late Directory? rootDirectory;
+    shared actual variable JsonValue settings = null;
+    shared actual variable [String*] sourceDirectories = ["source/"];
 
     value compiling
         =   AtomicBoolean(false);
@@ -579,9 +584,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
                     //      a source directory (or avoid having them added to the
                     //      queue in the first place.)
                     while (!typeCheckQueue.empty) {
+                        value changedDocs = [*typeCheckQueue.clone()];
                         typeCheckQueue.clear();
                         value listings = textDocuments.clone();
-                        compileModulesAndPublishDiagnostics(listings);
+                        compileModulesAndPublishDiagnostics(listings, changedDocs);
                     }
                 }
                 finally {
@@ -591,7 +597,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         }
     }
 
-    void compileModulesAndPublishDiagnostics({<String->String>*} listings) {
+    void compileModulesAndPublishDiagnostics(
+            {<String->String>*} listings, [String*] changedDocs) {
+
+        [String*] compiledDocumentIds;
         ListMultimap<String,DiagnosticImpl> allDiagnostics;
         // TODO Send error messages for all compile exceptions. Then, rethrow. Don't log
         //      the exception; message tracer will do this. If "ReportableException",
@@ -601,9 +610,14 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         //      the MessageTracer, no?
 
         try {
-            allDiagnostics = ArrayListMultimap {
-                *compileModules(sourceDirectories, listings)
-            };
+            value results
+                =   compileModules(sourceDirectories, listings, changedDocs, this);
+
+            compiledDocumentIds
+                =   results[0];
+
+            allDiagnostics
+                =   ArrayListMultimap { *results[1] };
         }
         catch (Throwable e) {
             log.error("failed compile");
@@ -631,7 +645,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer {
         // FIXME We have to send diags for *all* files, since we need to clear
         // errors!!! Instead, we need to keep a list of files w/errors, to limit
         // the work here.
-        for (documentId in listings.map(Entry.key)) {
+        for (documentId in compiledDocumentIds) {
             value diagnostics = allDiagnostics.get(documentId);
             value p = PublishDiagnosticsParamsImpl();
             p.uri = toUri(documentId);

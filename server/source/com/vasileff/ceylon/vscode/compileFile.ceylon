@@ -61,7 +61,7 @@ import java.io {
                         case (equal) 0;
             };
 
-    value [cuList, status, messages] = compileDartSP {
+    value [cuList, status, messages, _] = compileDartSP {
         virtualFiles = [virtualFile];
     };
 

@@ -2,34 +2,24 @@ import ceylon.buffer.charset {
     utf8
 }
 import ceylon.interop.java {
-    createJavaByteArray,
-    CeylonIterable
+    createJavaByteArray
 }
 
-import com.redhat.ceylon.cmr.ceylon {
-    CeylonUtils
-}
-import com.redhat.ceylon.common.config {
-    CeylonConfig
-}
 import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
 }
-import com.redhat.ceylon.compiler.typechecker.context {
-    PhasedUnits,
-    Context
-}
 import com.redhat.ceylon.compiler.typechecker.io {
-    VirtualFile,
-    VFS
+    VirtualFile
+}
+import com.redhat.ceylon.compiler.typechecker.tree {
+    Message
 }
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
 import com.vasileff.ceylon.dart.compiler {
     javaList,
-    compileDartSP,
-    dartBackend
+    compileDartSP
 }
 import com.vasileff.ceylon.structures {
     ArrayListMultimap,
@@ -37,7 +27,13 @@ import com.vasileff.ceylon.structures {
 }
 import com.vasileff.ceylon.vscode.internal {
     newDiagnostic,
-    log
+    log,
+    LSContext,
+    modulesFromModuleDescriptors,
+    flattenVirtualFiles,
+    dartCompatibleModules,
+    moduleNameForSourceFile,
+    moduleNameForDocumentId
 }
 
 import io.typefox.lsapi {
@@ -51,12 +47,13 @@ import java.io {
     ByteArrayInputStream,
     InputStream
 }
-import ceylon.logging {
-    debug
-}
 
-[<String->DiagnosticImpl>*] compileModules(
-        [String*] sourceDirectories, {<String -> String>*} listings) {
+"Returns a list of compiled documentIds and all diagnostics."
+[[String*], [<String->DiagnosticImpl>*]] compileModules(
+        [String*] sourceDirectories,
+        {<String -> String>*} listings,
+        [String*] changedDocs,
+        LSContext context) {
 
     "The full path, parent directory, and file."
     function pathParts(String path) {
@@ -169,16 +166,99 @@ import ceylon.logging {
 
     value dirsWithoutTrailingSlash = sourceDirectories.map((d) => d[0:d.size-1]);
     value sourceFolders = dirsWithoutTrailingSlash.collect(DirectoryVirtualFile);
-    value moduleFilters = ["default", *dartCompatibleModules(sourceFolders)];
-    log.debug("compiling with module filters: ``moduleFilters``");
+    value modules = modulesFromModuleDescriptors(sourceFolders);
+    value modulesForBackend = dartCompatibleModules(modules)
+            .collect((Module.nameAsString));
 
-    value [cuList, status, messages] = compileDartSP {
-        moduleFilters = moduleFilters;
+    // Proof of Concept Module caching
+    //
+    // Compile:
+    //      - The default module and
+    //      - modulesForBackend that are
+    //          - not cached, or
+    //          - have changed files
+
+    value modulesNotCached
+        =>  modulesForBackend.select {
+                (moduleName) => context.moduleCache.keys.every {
+                    (nameAndVersion) => !nameAndVersion.startsWith(moduleName + "/");
+                };
+            };
+
+    value modulesWithChangedFiles
+        =>  changedDocs
+                .map {
+                    (documentId) => moduleNameForDocumentId {
+                        moduleNames = modulesForBackend;
+                        sourceDirectories = context.sourceDirectories;
+                        documentId = documentId;
+                    };
+                }.coalesced.distinct.sequence();
+
+    value modulesToCompile
+        =>  ["default", *modulesNotCached.chain(modulesWithChangedFiles)];
+
+    "The module cache to use, which excludes modules we are about to compile."
+    value moduleCache
+        =   map(context.moduleCache.filterKeys {
+                (nameAndVersion) => !modulesToCompile.any {
+                    (moduleName) => nameAndVersion.startsWith(moduleName + "/");
+                };
+            });
+
+    log.debug("changedDocs: ``changedDocs``");
+    log.debug("moduleCache.keys: ``moduleCache.keys.sequence()``");
+    log.debug("modulesForBackend: ``modulesForBackend``");
+    log.debug("modulesNotCached: ``modulesNotCached``");
+    log.debug("modulesWithChangedFiles: ``modulesWithChangedFiles``");
+    log.debug("modulesToCompile: ``modulesToCompile``");
+
+    for (k->m in moduleCache) {
+        // TODO clear the type cache? Disable the cache if we do concurrent builds?
+        m.cache.clear();
+    }
+
+    value [cuList, status, messages, moduleManager] = compileDartSP {
+        moduleFilters = modulesToCompile;
         virtualFiles = sourceFolders;
+        moduleCache = moduleCache;
     };
 
-    return messages
-        .filter((_ -> m)
+    // if no errors, cache the modules
+    // TODO try cache modules that have no errors?
+    if (messages.map(Entry.item).every(Message.warning)) {
+        context.moduleCache = map {
+            for (m in moduleManager.modules.listOfModules)
+            (m.nameAsString + "/" + m.version)->m
+        };
+    }
+
+    // Determine what files we actually compiled so that the caller will know what
+    // diagnostics can be cleared. This includes all files in all source directories
+    // that are not in excluded modules.
+
+    value allModuleNames
+        =   modules.collect(Module.nameAsString);
+
+    value skippedModuleNames
+        =   allModuleNames.filter(not(modulesToCompile.contains));
+
+    value compiledDocumentIds
+        =   sourceFolders.flatMap {
+                (folder) => flattenVirtualFiles(folder).map {
+                    (file) => file.path -> file.getRelativePath(folder);
+                };
+            }.filter {
+                (documentId -> sourceFile) => !skippedModuleNames.contains {
+                    moduleNameForSourceFile(allModuleNames, sourceFile) else "!";
+                };
+            }.collect(Entry.key);
+
+    log.debug("compiledDocumentIds = ``compiledDocumentIds``");
+
+    return [
+        compiledDocumentIds,
+        messages.filter((_ -> m)
             =>  if (is UsageWarning m)
                 then !m.suppressed
                 else true)
@@ -189,88 +269,6 @@ import ceylon.logging {
                     severity = message.warning
                         then DiagnosticSeverity.warning
                         else DiagnosticSeverity.error;
-                });
-}
-
-[VirtualFile*] flattenVirtualFiles(VirtualFile folder) {
-    assert (folder.folder);
-
-    {VirtualFile*} folderAndDescendentFolders(VirtualFile folder)
-        =>  CeylonIterable(folder.children)
-                .filter(VirtualFile.folder)
-                .flatMap(folderAndDescendentFolders)
-                .follow(folder);
-
-    return [ for (f in folderAndDescendentFolders(folder))
-             for (file in f.children)
-             if (!file.folder) file ];
-}
-
-[String*] dartCompatibleModules([VirtualFile*] sourceFolders) {
-
-    "A dummy, empty config CeylonConfig(). We don't need overrides.xml to parse
-     module.ceylon, and the list of source folders has been provided."
-    value ceylonConfig
-        =   CeylonConfig();
-
-    value repositoryManager
-        =   CeylonUtils.repoManager().config(ceylonConfig).buildManager();
-
-    value context
-        =   Context(repositoryManager, VFS());
-
-    value phasedUnits
-        =   PhasedUnits(context);
-
-    value moduleSourceMapper
-        =   phasedUnits.moduleSourceMapper;
-
-    value moduleDescriptors
-        =   sourceFolders.flatMap((sourceFolder)
-            =>  flattenVirtualFiles(sourceFolder)
-                    .filter((file) => file.name == "module.ceylon")
-                    .map((file) => sourceFolder->file));
-
-    // parse all found module.ceylon descriptors
-    for (sourceFolder -> file in moduleDescriptors) {
-        log.debug("processing module descriptor '``file.path``'");
-        for (part in file.path.split('/'.equals).exceptLast) {
-            moduleSourceMapper.push(part);
-        }
-        moduleSourceMapper.visitModuleFile();
-        phasedUnits.parseUnit(file, sourceFolder);
-    }
-
-    "Typechecker Modules, obtained by visiting the phased units"
-    value modules
-        =   CeylonIterable(phasedUnits.phasedUnits).collect<Module?>((pu)
-            =>  pu.visitSrcModulePhase() else null).coalesced;
-
-    for (pu in phasedUnits.phasedUnits) {
-        // necessary to fill in the module dependencies, which we'll want to use
-        pu.visitRemainingModulePhase();
-    }
-
-    if (log.enabled(debug)) {
-        for (m in modules) {
-            log.debug("Module dependencies for ``m``: \
-                       ``[for (i in m.imports) i.\imodule]``");
-        }
-    }
-
-    function dartSupported(Module m)
-        =>  m.nativeBackends.none() || m.nativeBackends.supports(dartBackend);
-
-    "All modules based on the module descriptor files we found."
-    value allModules
-        =   moduleDescriptors
-                .map((sourceFolder->file) => file.getRelativePath(sourceFolder))
-                .map((name) => ".".join(name.split('/'.equals).exceptLast));
-
-    "All modules that are not explicitly excluded, since parse or other errors
-     may make it impossible to determine compatibility, and when in doubt, include."
-    value excludes
-        =   modules.filter(not(dartSupported)).collect(Module.nameAsString);
-
-    return allModules.select(not(excludes.contains));
+                })
+    ];
 }

@@ -29,6 +29,9 @@ shared void runIDE() {
     };
 }
 
+shared void qr()
+    =>  runApp(["55747", "trace"]);
+
 void runApp([String*] arguments) {
     setLogPriority(arguments[1]);
 

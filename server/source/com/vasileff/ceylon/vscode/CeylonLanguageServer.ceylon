@@ -726,8 +726,12 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                 =   rootDirectory.path.childPath(relativeDirectory).resource;
 
             if (!is Directory sourceDirectory) {
-                log.warn("cannot find '``relativeDirectory``' in the workspace \
-                          '``rootDirectory.path``'");
+                value message = "cannot find the configured source directory \
+                                 '``relativeDirectory``' in the workspace \
+                                 '``rootDirectory.path``'";
+                log.warn(message);
+                showWarning(message);
+                continue;
             }
 
             // now, read all '*.ceylon' and '*.dart' files into memory!

@@ -175,12 +175,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
             if (is Directory rootDirectory) {
                 this.rootDirectory = rootDirectory;
 
-                // setup source directories
-
-                // TODO make sure the compiler use this config too
-                //      Watch .ceylon/config, update the source dir list and rebuild
-                //      textDocuments if dirs change
-
+                // Setup source directories. Note that initialize() is called before
+                // didChangeConfiguraton(), so it will take much more work to make
+                // source directories configurable
                 value ceylonConfig
                     =   CeylonConfig.createFromLocalDir(JFile(that.rootPath));
 

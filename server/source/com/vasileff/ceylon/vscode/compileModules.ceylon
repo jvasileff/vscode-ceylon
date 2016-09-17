@@ -261,7 +261,7 @@ import java.util {
     }
 
     value ceylonConfig
-        =   CeylonConfig.createFromLocalDir(JFile(context.rootDirectory?.path?.string));
+        =   context.ceylonConfig;
 
     value outputRepositoryManager
         =   context.generateOutput then

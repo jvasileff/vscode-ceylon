@@ -60,6 +60,50 @@
                     "enum": [
                         "trace", "debug", "info", "warn", "error", "fatal", "disabled"
                     ]
+                },
+                "ceylon.config.compiler.suppresswarning": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "uniqueItems": true,
+                    "description": "Override the suppresswarning setting."
+                },
+                "ceylon.config.compiler.dartsuppresswarning": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "uniqueItems": true,
+                    "description": "Override the dartsuppresswarning setting."
+                },
+                // "ceylon.config.compiler.source": {
+                //     "type": "array",
+                //     "items": {
+                //         "type": "string"
+                //     },
+                //     "uniqueItems": true,
+                //     "description": "Override the source repositories. Note that this will not take effect without restart."
+                // },
+                // "ceylon.config.compiler.resource": {
+                //     "type": "array",
+                //     "items": {
+                //         "type": "string"
+                //     },
+                //     "uniqueItems": true,
+                //     "description": "Override the resource repositories. Note that this will not take effect without restart."
+                // },
+                "ceylon.config.repositories.output": {
+                    "type": "string",
+                    "description": "Override the output repository"
+                },
+                "ceylon.config.repositories.lookup": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "uniqueItems": true,
+                    "description": "Override the lookup repositories"
                 }
             }
         }

@@ -12,10 +12,12 @@ import com.redhat.ceylon.compiler.typechecker.io {
     VirtualFile
 }
 import com.redhat.ceylon.compiler.typechecker.tree {
-    Message
+    Message,
+    Node
 }
 import com.redhat.ceylon.model.typechecker.model {
-    Module
+    Module,
+    Unit
 }
 import com.vasileff.ceylon.dart.compiler {
     javaList,
@@ -186,6 +188,10 @@ import java.io {
     //      - modules that aren't cached
     //      - modules with changed files
     //      - modules with visibility to modules with changed files
+    //
+    // Note that a Module may be cached and stil have errors. An attempt will be made to
+    // recompile Modules with errors as soon as there's a chance of a better result, that
+    // is, a souce code change to the errant module or a module it can see.
 
     value moduleNamesWithChangedFiles
         =>  changedDocumentIds
@@ -203,7 +209,7 @@ import java.io {
                 if (!m.nameAsString in allSourceModuleNames) {
                     // We don't have source code for it, so keep it.
                     //
-                    // Note: this is actually safe because if we *previously* has source
+                    // Note: this is actually safe because if we *previously* had source
                     // code for some module that was then changed or deleted, it would
                     // have been evicted at that time. So if we don't have source now,
                     // it couldn't have been loaded from source.
@@ -244,21 +250,31 @@ import java.io {
         moduleCache = cacheAfterEvictions;
     };
 
-    // If no errors, cache the modules, otherwise, replace with evicted cache
-    // TODO at least cache modules that compiled w/o errors. The dependant modules
-    //      may fail, even though the file being edited compiles. So we don't want
-    //      to re-compile the dependency for every edit until the dependant is fixed!
-    if (messages.map(Entry.item).every(Message.warning)) {
-        context.moduleCache = map {
-            for (m in moduleManager.modules.listOfModules)
-            // empty or invalid module.ceylon descriptors may have nulls
-            if (m.nameAsString exists && m.version exists)
-            (m.nameAsString + "/" + m.version)->m
-        };
-    }
-    else {
-        context.moduleCache = cacheAfterEvictions;
-    }
+//    "Modules that failed to typecheck."
+//    value moduleNamesWithErrors
+//        =   set {
+//                for (node -> message in messages)
+//                if (!message.warning)
+//                if (exists moduleName
+//                    =   moduleNameForDocumentId {
+//                            moduleNames = allSourceModuleNames;
+//                            sourceDirectories = sourceDirectories;
+//                            node.unit.fullPath;
+//                        })
+//                moduleName
+//            };
+
+    // Include all Modules from the type checker, even in the case of error, and all
+    // previously cached Modules that are still valid.
+    context.moduleCache
+        =   map({
+                for (m in moduleManager.modules.listOfModules)
+                // empty or invalid module.ceylon descriptors may have nulls
+                if (!m.defaultModule,
+                    exists nameAsString = m.nameAsString,
+                    exists version = m.version)
+                nameAsString + "/" + version -> m
+            }.chain(cacheAfterEvictions));
 
     // Now, determine what files we actually compiled so that the caller will know what
     // diagnostics can be cleared. This includes all files in all source directories that

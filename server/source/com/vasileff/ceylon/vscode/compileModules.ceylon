@@ -2,26 +2,31 @@ import ceylon.buffer.charset {
     utf8
 }
 import ceylon.interop.java {
-    createJavaByteArray
+    createJavaByteArray,
+    CeylonIterable,
+    javaClass
 }
 
+import com.redhat.ceylon.common.config {
+    CeylonConfig,
+    DefaultToolOptions
+}
+import com.redhat.ceylon.common.tool {
+    EnumUtil
+}
 import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
 }
 import com.redhat.ceylon.compiler.typechecker.io {
     VirtualFile
 }
-import com.redhat.ceylon.compiler.typechecker.tree {
-    Message,
-    Node
-}
 import com.redhat.ceylon.model.typechecker.model {
-    Module,
-    Unit
+    Module
 }
 import com.vasileff.ceylon.dart.compiler {
     javaList,
-    compileDartSP
+    compileDartSP,
+    Warning
 }
 import com.vasileff.ceylon.structures {
     ArrayListMultimap,
@@ -48,7 +53,15 @@ import io.typefox.lsapi.impl {
 
 import java.io {
     ByteArrayInputStream,
-    InputStream
+    InputStream,
+    JFile=File
+}
+import java.lang {
+    Class,
+    Enum
+}
+import java.util {
+    EnumSet
 }
 
 "Returns a list of compiled documentIds and all diagnostics."
@@ -244,10 +257,14 @@ import java.io {
         m.cache.clear();
     }
 
+    value ceylonConfig
+        =   CeylonConfig.createFromLocalDir(JFile(context.rootDirectory?.path?.string));
+
     value [cuList, status, messages, moduleManager] = compileDartSP {
         moduleFilters = moduleNamesToCompile;
         virtualFiles = sourceVirtualFileFolders;
         moduleCache = cacheAfterEvictions;
+        suppressWarning = getAllSuppressWarnings(ceylonConfig);
     };
 
 //    "Modules that failed to typecheck."
@@ -309,4 +326,37 @@ import java.io {
                         else DiagnosticSeverity.error;
                 })
     ];
+}
+
+[Warning*] getAllSuppressWarnings(CeylonConfig config) {
+    // compiler.suppresswarning option
+    value result = EnumUtil.enumsFromStrings(javaClass<Warning>(),
+            DefaultToolOptions.getCompilerSuppressWarnings(config))
+            else EnumSet.noneOf(javaClass<Warning>());
+    // compiler.dartsuppresswarning option
+    result.addAll(enumsFromStrings(javaClass<Warning>(),
+            getCompilerDartSuppressWarnings(config)));
+    return CeylonIterable(result).sequence();
+}
+
+[String*] getCompilerDartSuppressWarnings(CeylonConfig config)
+    =>  if (exists warnings
+            =   config.getOptionValues("compiler.dartsuppresswarning"))
+        then warnings.iterable.coalesced.map(Object.string).sequence()
+        else [];
+
+EnumSet<EnumType> enumsFromStrings<EnumType>(
+        Class<EnumType> enumClass, [String*] elements)
+        given EnumType satisfies Enum<EnumType> {
+    value result = EnumSet<EnumType>.noneOf(enumClass);
+    value allValues = EnumSet.allOf(enumClass);
+    for (element in elements.map(String.trimmed)
+                            .map((String s) => s.replace("-", "_"))) {
+        for (e in allValues) {
+            if (e.name().equalsIgnoringCase(element)) {
+                result.add(e);
+            }
+        }
+    }
+    return result;
 }

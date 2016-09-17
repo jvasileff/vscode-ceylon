@@ -3,7 +3,7 @@
     "displayName": "vscode-ceylon",
     "description": "VSCode Language Client for Ceylon",
     "version": "0.0.1",
-    "publisher": "JohnVasileff",
+    "publisher": "John Vasileff",
     "license": "Apache License Version 2.0",
     "engines": {
         "vscode": "^1.4.0"
@@ -47,6 +47,11 @@
                     "type": "string",
                     "default": "",
                     "description": "The directory of the Ceylon installation to use."
+                },
+                "ceylon.generateOutput": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Write compiled binaries to the output repository. Note that output is produced regardless of whether or not the source files have been saved."
                 },
                 "ceylon.serverLogPriority": {
                     "type": "string",

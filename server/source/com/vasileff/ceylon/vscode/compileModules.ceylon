@@ -7,6 +7,9 @@ import ceylon.interop.java {
     javaClass
 }
 
+import com.redhat.ceylon.cmr.ceylon {
+    CeylonUtils
+}
 import com.redhat.ceylon.common.config {
     CeylonConfig,
     DefaultToolOptions
@@ -260,11 +263,18 @@ import java.util {
     value ceylonConfig
         =   CeylonConfig.createFromLocalDir(JFile(context.rootDirectory?.path?.string));
 
+    value outputRepositoryManager
+        =   context.generateOutput then
+            CeylonUtils.repoManager().config(ceylonConfig).buildOutputManager();
+
+    log.debug("compiling with generateOutput=``outputRepositoryManager exists``");
+
     value [cuList, status, messages, moduleManager] = compileDartSP {
         moduleFilters = moduleNamesToCompile;
         virtualFiles = sourceVirtualFileFolders;
         moduleCache = cacheAfterEvictions;
         suppressWarning = getAllSuppressWarnings(ceylonConfig);
+        outputRepositoryManager = outputRepositoryManager;
     };
 
 //    "Modules that failed to typecheck."

@@ -139,7 +139,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
     shared actual late Consumer<MessageParams> showMessage;
     shared actual late Consumer<ShowMessageRequestParams> showMessageRequest;
     shared actual late Directory? rootDirectory;
-    shared actual variable JsonValue settings = null;
+    shared actual variable JsonObject? settings = null;
     shared actual variable [String*] sourceDirectories = ["source/"];
 
     value compiling
@@ -159,10 +159,6 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         =   CeylonMutableSet(ConcurrentSkipListSet<String>(
                     JavaComparator(uncurry(String.compare))));
 
-    value ceylonSettings
-        =>  if (is JsonObject settings = settings)
-            then settings.getObjectOrNull("ceylon")
-            else null;
 
     function inSourceDirectory(String documentId)
         =>  sourceDirectories.any((d) => documentId.startsWith(d));
@@ -468,7 +464,10 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
     WorkspaceService workspaceService => object satisfies WorkspaceService {
         shared actual
         void didChangeConfiguraton(DidChangeConfigurationParams that) {
-            settings = forceWrapJavaJson(that.settings);
+            settings
+                =   if (is JsonObject obj = forceWrapJavaJson(that.settings))
+                    then obj else null;
+
             // update logging level
             if (exists p = ceylonSettings?.getStringOrNull("serverLogPriority")) {
                 setLogPriority(p);

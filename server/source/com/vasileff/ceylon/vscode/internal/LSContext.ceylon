@@ -21,7 +21,15 @@ shared interface LSContext {
 
     shared formal Directory? rootDirectory;
     shared formal variable Map<String, Module> moduleCache;
-    shared formal variable JsonValue settings;
+    shared formal variable JsonObject? settings;
+
+    shared JsonObject? ceylonSettings
+        =>  if (is JsonObject settings = settings)
+            then settings.getObjectOrNull("ceylon")
+            else null;
+
+    shared Boolean generateOutput
+        =>  ceylonSettings?.getBooleanOrNull("generateOutput") else false;
 
     "The source directories relative to [[rootDirectory]]. Each directory must be
      normalized (i.e. no '..' segments), must not begin with a '.', and must end in

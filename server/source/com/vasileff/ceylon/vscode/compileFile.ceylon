@@ -16,7 +16,8 @@ import com.vasileff.ceylon.dart.compiler {
     javaList
 }
 import com.vasileff.ceylon.vscode.internal {
-    newDiagnostic
+    newDiagnostic,
+    rangeForMessage
 }
 
 import io.typefox.lsapi {

@@ -1,45 +1,48 @@
 import ceylon.buffer.charset {
     utf8
 }
+import ceylon.collection {
+    HashSet,
+    HashMap
+}
 import ceylon.file {
     parsePath,
     Directory,
     Visitor,
     File,
-    Path,
     Nil,
     Link
 }
 import ceylon.interop.java {
     JavaList,
-    CeylonMutableMap,
     CeylonMutableSet,
     JavaComparator,
-    CeylonIterable
+    CeylonIterable,
+    synchronize
 }
 
 import com.redhat.ceylon.common.config {
     DefaultToolOptions,
     CeylonConfig
 }
+import com.redhat.ceylon.model.typechecker.context {
+    TypeCache
+}
+import com.redhat.ceylon.model.typechecker.model {
+    Module
+}
 import com.vasileff.ceylon.dart.compiler {
     ReportableException
 }
-import com.vasileff.ceylon.structures {
-    ArrayListMultimap,
-    ListMultimap
-}
 import com.vasileff.ceylon.vscode.internal {
     forceWrapJavaJson,
-    JsonValue,
     log,
-    runnable,
     JsonObject,
     setLogPriority,
-    newMessageParams,
     ReportedException,
     eq,
-    LSContext
+    LSContext,
+    launchLevel1Compiler
 }
 
 import io.typefox.lsapi {
@@ -77,7 +80,6 @@ import io.typefox.lsapi {
     RenameParams,
     TextDocumentSyncKind,
     Range,
-    MessageType,
     Message,
     FileChangeType
 }
@@ -92,8 +94,7 @@ import io.typefox.lsapi.impl {
     CompletionOptionsImpl,
     DiagnosticImpl,
     CompletionListImpl,
-    CompletionItemImpl,
-    MessageParamsImpl
+    CompletionItemImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -113,7 +114,6 @@ import java.util {
 }
 import java.util.concurrent {
     CompletableFuture,
-    ConcurrentSkipListMap,
     ConcurrentSkipListSet
 }
 import java.util.concurrent.atomic {
@@ -122,17 +122,9 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
-import com.redhat.ceylon.model.typechecker.model {
-    Module
-}
-import ceylon.logging {
-    warn
-}
 
 class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContext {
-
-    // FIXME this is obviously just for initial testing
-    shared actual variable Map<String, Module> moduleCache = emptyMap;
+    shared actual variable Set<Module> moduleCache = emptySet;
 
     shared actual late Consumer<PublishDiagnosticsParams> publishDiagnostics;
     shared actual late Consumer<MessageParams> logMessage;
@@ -142,23 +134,22 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
     shared actual variable JsonObject? settings = null;
     shared actual variable [String*] sourceDirectories = ["source/"];
 
-    value compiling
-        =   AtomicBoolean(false);
-
-    value textDocuments
-        =   CeylonMutableMap(ConcurrentSkipListMap<String, String>(
-                    JavaComparator(uncurry(String.compare))));
-
     value openDocuments
         =   CeylonMutableSet(ConcurrentSkipListSet<String>(
                     JavaComparator(uncurry(String.compare))));
 
-    // FIXME ConcurrentSkipListSet.clear() and addAll() are not thread safe, but we're
-    //       using it as if they were
-    value typeCheckQueue
-        =   CeylonMutableSet(ConcurrentSkipListSet<String>(
-                    JavaComparator(uncurry(String.compare))));
+    compilingLevel1 = AtomicBoolean(false);
+    compilingLevel2 = AtomicBoolean(false);
 
+    documents = HashMap<String, String>();
+    changedDocumentIds = HashSet<String>();
+
+    level2QueuedRoots = HashSet<Module>();
+    level2QueuedModuleNames = HashSet<String>();
+    level2RefreshingModuleNames = HashSet<String>();
+    cachedModuleNamesCompiledFromSource = HashSet<String>();
+
+    LSContext context => this;
 
     function inSourceDirectory(String documentId)
         =>  sourceDirectories.any((d) => documentId.startsWith(d));
@@ -166,6 +157,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
     shared actual
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
         log.info("initialize called");
+
+        // TODO how exactly should TypeCaches be managed?
+        TypeCache.setEnabledByDefault(true);
 
         if (exists rootPathString = that.rootPath) {
             log.info("rootPath is ``rootPathString``");
@@ -213,11 +207,12 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
                 log.info("configured source directories: ``sourceDirectories``");
 
-                // read sourcefiles into memory
-                initializeDocuments(rootDirectory);
-
-                // launch initial compile
-                queueDiagnotics(*textDocuments.keys);
+                synchronize(context, () {
+                    // read sourcefiles into memory
+                    initializeDocuments(rootDirectory);
+                    changedDocumentIds.addAll(documents.keys);
+                });
+                launchLevel1Compiler(this);
             }
             else {
                 throw ReportableException(
@@ -270,7 +265,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
             }
 
             assert (exists text
-                    =   textDocuments[toDocumentIdString(that.textDocument.uri)]);
+                    =   documents[toDocumentIdString(that.textDocument.uri)]);
             value lineCharacter = "``that.position.line``:``that.position.character``";
             value builder = CompletionListBuilder();
 
@@ -303,23 +298,26 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                 return;
             }
 
-            value existingText = textDocuments[documentId];
-            if (!exists existingText) {
-                throw ReportableException("did not find changed document \
-                                           '``documentId``'");
-            }
-            variable value newText = existingText;
-            for (change in that.contentChanges) {
-                switch (range = change.range)
-                case (is Null) {
-                    newText = change.text;
+            synchronize(context, () {
+                value existingText = documents[documentId];
+                if (!exists existingText) {
+                    throw ReportableException("did not find changed document \
+                                               '``documentId``'");
                 }
-                else {
-                    newText = replaceRange(newText, range, change.text);
+                variable value newText = existingText;
+                for (change in that.contentChanges) {
+                    switch (range = change.range)
+                    case (is Null) {
+                        newText = change.text;
+                    }
+                    else {
+                        newText = replaceRange(newText, range, change.text);
+                    }
                 }
-            }
-            textDocuments[documentId] = newText;
-            queueDiagnotics(documentId);
+                documents[documentId] = newText;
+                changedDocumentIds.add(documentId);
+            });
+            launchLevel1Compiler(context);
         }
 
         shared actual
@@ -364,26 +362,29 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                 return;
             }
 
-            if (exists existingText = textDocuments[documentId]) {
-                // Update with the provided text and queue diagnistics if necessary.
-                if (!corresponding(existingText.lines, that.textDocument.text.lines)) {
-                    textDocuments[documentId] = that.textDocument.text;
-                    queueDiagnotics(documentId);
+            synchronize(context, () {
+                if (exists existingText = documents[documentId]) {
+                    // Update with the provided text and queue diagnistics if necessary.
+                    if (!corresponding(existingText.lines, that.textDocument.text.lines)) {
+                        documents[documentId] = that.textDocument.text;
+                        changedDocumentIds.add(documentId);
+                    }
                 }
-            }
-            else {
-                // New file. Save the text, but let the ensuing didChangeWatchedFiles()
-                // call queueDiagnotics(). This helps avoid an extra, early, and
-                // errant compile on file renames where didOpen() occurs for the new
-                // file before the old file is deleted.
-                textDocuments[documentId] = that.textDocument.text;
-                // FIXME adding the line below, because what's document above doesn't
-                //       work well for open file saves
-                // FIXME 2 why "errant compile" in the note above!? Oh, actually, it was
-                //          prob that for renames we would wind up with bogus duplicate
-                //          declaration errors while we temp. have both files.... So, ugh.
-                queueDiagnotics(documentId);
-            }
+                else {
+                    // New file. Save the text, but let the ensuing didChangeWatchedFiles()
+                    // call queueDiagnotics(). This helps avoid an extra, early, and
+                    // errant compile on file renames where didOpen() occurs for the new
+                    // file before the old file is deleted.
+                    documents[documentId] = that.textDocument.text;
+                    // FIXME adding the line below, because what's document above doesn't
+                    //       work well for open file saves
+                    // FIXME 2 why "errant compile" in the note above!? Oh, actually, it was
+                    //          prob that for renames we would wind up with bogus duplicate
+                    //          declaration errors while we temp. have both files.... So, ugh.
+                    changedDocumentIds.add(documentId);
+                }
+            });
+            launchLevel1Compiler(outer);
         }
 
         shared actual
@@ -473,6 +474,8 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
         shared actual
         void didChangeWatchedFiles(DidChangeWatchedFilesParams that) {
+
+            synchronize(context, () {
             variable value changedFiles = [] of {String*};
 
             for (change in that.changes) {
@@ -485,7 +488,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                     continue;
                 }
                 if (change.type == FileChangeType.deleted) {
-                    value originalText = textDocuments.remove(documentId);
+                    value originalText = documents.remove(documentId);
                     log.debug("deleted file '``documentId``'");
                     if (originalText exists) {
                         log.debug("queueing diagnsotics for deleted file \
@@ -525,7 +528,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                     switch (resource)
                     case (is File) {
                         value newText = readFile(resource);
-                        value originalText = textDocuments.put(documentId, newText);
+                        value originalText = documents.put(documentId, newText);
                         if (!eq(newText, originalText)) {
                             changedFiles = changedFiles.follow(documentId);
                         }
@@ -547,8 +550,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                     }
                 }
             }
-
-            queueDiagnotics(*changedFiles);
+            changedDocumentIds.addAll(changedFiles);
+            });
+            launchLevel1Compiler(context);
         }
 
         shared actual
@@ -563,119 +567,6 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         publishDiagnostics.accept(p);
     }
 
-    void queueDiagnotics(String* documentIds) {
-        typeCheckQueue.addAll(documentIds);
-        launchCompiler();
-    }
-
-    void runAsync(Anything() run) {
-        // TODO keep track of these, and shut them down if an exit or shutdown
-        //      message is recieved
-        value runArgument = run;
-        CompletableFuture.runAsync(runnable {
-            void run() {
-                try {
-                    runArgument();
-                }
-                catch (AssertionError | Exception t) {
-                    onError(t.message, t);
-                }
-            }
-        });
-    }
-
-    void launchCompiler() {
-        if (typeCheckQueue.empty) {
-            return;
-        }
-
-        // launch a compile task if one isn't running
-        if (compiling.compareAndSet(false, true)) {
-            log.debug("launching compiler");
-            runAsync(() {
-                try {
-                    // TODO For files that are not part of a module (which means not
-                    //      in a source directory, I guess), compile individually with
-                    //      compileAndPublishDiagnostics? Maybe only if there is no
-                    //      InitializeParams.rootPath? Perhaps parse, but don't
-                    //      typecheck? Or do typecheck so completion, etc, works,
-                    //      but don't report analysis errors?
-                    //
-                    //      If so, they should probably only be compiled when opened
-                    //      and changed, with their diagnostics being cleared when
-                    //      closed.
-
-                    // TODO Until the above, we should ignore files that are not in
-                    //      a source directory (or avoid having them added to the
-                    //      queue in the first place.)
-                    while (!typeCheckQueue.empty) {
-                        value changedDocs = [*typeCheckQueue.clone()];
-                        typeCheckQueue.clear();
-                        value listings = textDocuments.clone();
-                        compileModulesAndPublishDiagnostics(listings, changedDocs);
-                    }
-                }
-                finally {
-                    compiling.set(false);
-                }
-            });
-        }
-    }
-
-    void compileModulesAndPublishDiagnostics(
-            {<String->String>*} listings, [String*] changedDocs) {
-
-        [String*] compiledDocumentIds;
-        ListMultimap<String,DiagnosticImpl> allDiagnostics;
-        // TODO Send error messages for all compile exceptions. Then, rethrow. Don't log
-        //      the exception; message tracer will do this. If "ReportableException",
-        //      don't show the exception type?
-        //
-        //      Actually, we should send error messages for all exceptions in
-        //      the MessageTracer, no?
-
-        try {
-            value results
-                =   compileModules(sourceDirectories, listings, changedDocs, this);
-
-            compiledDocumentIds
-                =   results[0];
-
-            allDiagnostics
-                =   ArrayListMultimap { *results[1] };
-        }
-        catch (Throwable e) {
-            log.error("failed compile");
-
-            value sb = StringBuilder();
-            printStackTrace(e, sb.append);
-
-            value exceptionType
-                =   if (!e is ReportableException)
-                    then let (cn = className(e))
-                         cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
-                    else "";
-
-            showError("Compilation failed: ``exceptionType``\
-                       ``e.message.replace("\n", "; ")``\
-                       \n\n``sb.string``");
-
-            // wrap, so we don't re-report to the user
-            throw ReportedException(e);
-        }
-
-        // FIXME We have to send diags for *all* files, since we need to clear
-        // errors!!! Instead, we need to keep a list of files w/errors, to limit
-        // the work here.
-        for (documentId in compiledDocumentIds) {
-            value diagnostics = allDiagnostics.get(documentId);
-            value p = PublishDiagnosticsParamsImpl();
-            p.uri = toUri(documentId);
-            p.diagnostics = JavaList<DiagnosticImpl>(diagnostics);
-            publishDiagnostics.accept(p);
-        }
-    }
-
     suppressWarnings("unusedDeclaration")
     void compileAndPublishDiagnostics(String documentId, String documentText) {
         value name = if (exists i = documentId.lastOccurrence('/'))
@@ -688,35 +579,11 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         publishDiagnostics.accept(p);
     }
 
-    String toDocumentIdString(String | Path uri) {
-        // Note that the source directory is included in the documentId. For
-        // example, 'source/com/example/file.ceylon', or if there is no root
-        // directory, '/path/to/file.ceylon'.
-        value path
-            =   if (is Path uri)
-                    then uri
-                else if (uri.startsWith("file:///"))
-                    // we need the right kind of Java nio path
-                    then parsePath(uri[7...])
-                else parsePath(uri);
-
-        return if (exists rootDirectory = rootDirectory)
-            then path.relativePath(rootDirectory.path).string
-            else path.string;
-    }
-
-    //see(`function toDocumentIdString`)
-    String toUri(String documentId)
-        =>  if (exists rootDirectory = rootDirectory)
-            then "file://" + rootDirectory.path.childPath(documentId)
-                                .absolutePath.normalizedPath.string
-            else "file://" + documentId;
-
-    "Populate [[textDocuments]] with all source files found in all source directories.
+    "Populate [[documents]] with all source files found in all source directories.
 
      Files outside of source directories are ignored. These will likely need to be
      loaded in [[TextDocumentService.didOpen]] if we add support for them."
-    void initializeDocuments(Directory rootDirectory) {
+    void initializeDocuments(Directory rootDirectory) => synchronize(context, () {
         for (relativeDirectory in sourceDirectories) {
             value sourceDirectory
                 =   rootDirectory.path.childPath(relativeDirectory).resource;
@@ -741,7 +608,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
                             else "";
                     if (extension in ["ceylon", "dart", "js", "java"]) {
                         value documentId = toDocumentIdString(file.path);
-                        textDocuments.put(documentId, readFile(file));
+                        documents.put(documentId, readFile(file));
                         count++;
                     }
                 }
@@ -749,7 +616,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
             log.info("initialized ``count`` files in '``sourceDirectory``' \
                       in ``system.milliseconds - startMillis``ms");
         }
-    }
+    });
 
     shared actual
     void onError(String? s, variable Throwable? throwable) {
@@ -814,29 +681,6 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         value mm = message?.string else "<null>";
         value ss = s else "<null>";
         log.trace(()=>"(onWrite) ``mm``, ``ss``");
-    }
-
-    suppressWarnings("unusedDeclaration")
-    void showInfo(String text) {
-        value messageParams = MessageParamsImpl();
-        messageParams.message = text;
-        messageParams.type = MessageType.info;
-        showMessage.accept(messageParams);
-    }
-
-    void showError(String text) {
-        value messageParams = MessageParamsImpl();
-        messageParams.message = text;
-        messageParams.type = MessageType.error;
-        showMessage.accept(messageParams);
-    }
-
-    suppressWarnings("unusedDeclaration")
-    void showWarning(String text) {
-        value messageParams = MessageParamsImpl();
-        messageParams.message = text;
-        messageParams.type = MessageType.warning;
-        showMessage.accept(messageParams);
     }
 }
 

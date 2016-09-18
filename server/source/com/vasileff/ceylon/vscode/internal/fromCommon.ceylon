@@ -24,6 +24,7 @@ import org.antlr.runtime {
     CommonToken
 }
 
+shared
 RangeImpl rangeForMessage(Message message) {
     if (exists [startLine, startColumn, endLine, endColumn]
             =   messageLocation(message)) {
@@ -41,6 +42,7 @@ RangeImpl rangeForMessage(Message message) {
     return RangeImpl(PositionImpl(), PositionImpl());
 }
 
+shared
 Integer[4]? messageLocation(Message error) {
     Integer startLine;
     Integer startColumn;
@@ -90,6 +92,7 @@ Integer[4]? messageLocation(Message error) {
     return [startLine, startColumn, endLine, endColumn];
 }
 
+shared
 Node? getIdentifyingNode(Node? node) {
     switch (node)
     case (is Tree.Declaration) {

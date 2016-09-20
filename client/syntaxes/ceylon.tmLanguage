@@ -14,10 +14,10 @@
 	<string>^~C</string>
 	<key>name</key>
 	<string>Ceylon</string>
-	<key>patterns</key>
-	<array>
-
-		<!-- Comments -->
+	<key>repository</key>
+	<!-- Comments -->
+	<dict>
+		<key>comments</key>
 		<dict>
 			<key>begin</key>
 			<string>/\*</string>
@@ -25,8 +25,24 @@
 			<key>end</key>
 			<string>\*/</string>
 
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>include</key>
+					<string>#comments</string>
+				</dict>
+			</array>
+
 			<key>name</key>
 			<string>comment.multiline.ceylon</string>
+		</dict>
+	</dict>
+	<key>patterns</key>
+	<array>
+		<!-- Comments -->
+		<dict>
+			<key>include</key>
+			<string>#comments</string>
 		</dict>
 
 		<dict>

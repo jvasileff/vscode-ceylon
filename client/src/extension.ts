@@ -61,8 +61,8 @@ export function activate(context: VSCode.ExtensionContext) {
                     if (!version.startsWith("1.3.0")) {
                         VSCode.window.showErrorMessage(
                             "Unsupported Ceylon version " + version + ". " +
-                            "This version of the Ceylon Language plugin requires " +
-                            "Ceylon 1.3.0 and may not function correctly.");
+                            "This version of the Ceylon Language VSCode Plugin " +
+                            "requires Ceylon 1.3.0 and may not function correctly.");
                     }
                 }));
 
@@ -93,7 +93,7 @@ export function activate(context: VSCode.ExtensionContext) {
                 }).listen(port, () => {
                     let options = { stdio: 'inherit', cwd: VSCode.workspace.rootPath };
 
-                    console.log("Ceylon: starting server");
+                    console.log("Ceylon: starting server: " + args);
                     // Run the ceylon language server
                     ChildProcess.execFile(ceylonExecutablePath, args, options);
                 });

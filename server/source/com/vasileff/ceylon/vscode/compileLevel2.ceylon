@@ -55,7 +55,7 @@ Boolean compileLevel2(LSContext context) {
         //  - deep dependents of modules compiled by level-1
         //  - modules with module descriptor changes and their deep dependents, but
         //    only if level-1 has queued them (level-2 never queues cached modules since
-        //    doing so could interfere with in-progress level-1 compiles.
+        //    doing so could interfere with in-progress level-1 compiles).
 
         // TODO in theory we need to worry about module versions since a module could
         //      potentially import an older version of a module that exists in the
@@ -118,6 +118,52 @@ Boolean compileLevel2(LSContext context) {
         // make room for new modules to be queued while we are compiling
         context.level2QueuedModuleNames.clear();
 
+        "Modules with removed module descriptors, or that are no longer compatible with
+         the configured backend."
+        value removedModuleNames
+            =   context.level2RefreshingModuleNames.select(
+                    not(moduleNamesToCompile.contains));
+
+        log.debug(()=>"c2-removedModuleNames: ``removedModuleNames``");
+
+        if (!removedModuleNames.empty) {
+            // clear diagnostics for all files of removed modules
+            for (documentId in expand(context.listingsByModuleName
+                        .getAll(removedModuleNames).coalesced)
+                        .map(Entry.key)) {
+                value p = PublishDiagnosticsParamsImpl();
+                p.uri = context.toUri(documentId);
+                p.diagnostics = JavaList<DiagnosticImpl>([]);
+                context.publishDiagnostics.accept(p);
+            }
+
+            // clear removed modules from the cache
+            context.moduleCache
+                =   set(context.moduleCache.filter((m)
+                        =>  !m.nameAsString in removedModuleNames));
+
+            // clear removed modules from list of modules compiled from source
+            context.cachedModuleNamesCompiledFromSource.removeAll(removedModuleNames);
+
+            // clear removed modules from context.level2RefreshingModuleNames; we're done
+            // dealing with them
+            context.level2RefreshingModuleNames.removeAll(removedModuleNames);
+
+            // clear the documentIds now, before calculating changedDocumentIdsToClear
+            // which may be added back if the compile below fails. The documentIds were
+            // removing here should not be added back.
+            context.changedDocumentIds.removeAll {
+                context.changedDocumentIds.select((documentId)
+                    =>  if (exists sf = sourceFileForDocumentId {
+                            context.sourceDirectories;
+                            documentId;
+                        })
+                        then removedModuleNames.any((m)
+                            =>  packageBelongsToModule(packageForSourceFile(sf), m))
+                        else false);
+            };
+        }
+
         value changedDocumentIdsToClear
             // level2RefreshingModuleNames may contain overlapping module names since it
             // includes all changed, removed, and added modules
@@ -131,8 +177,8 @@ Boolean compileLevel2(LSContext context) {
                     else false);
 
         context.changedDocumentIds.removeAll(changedDocumentIdsToClear);
-        log.debug(()=>"c2-changedDocumentIdsToClear: ``changedDocumentIdsToClear``");
 
+        log.debug(()=>"c2-changedDocumentIdsToClear: ``changedDocumentIdsToClear``");
         log.debug(()=>"c2-moduleCache context: \
                        ``sort(context.moduleCache.collect(Module.signature))``");
 
@@ -153,6 +199,7 @@ Boolean compileLevel2(LSContext context) {
     });
 
     if (moduleNamesToCompile.empty) {
+        // if there were any level2RefreshingModuleNames, they've have already been cleared
         return false;
     }
 
@@ -250,6 +297,8 @@ Boolean compileLevel2(LSContext context) {
         // FIXME We have to send diags for *all* files, since we need to clear
         // errors!!! Instead, we need to keep a list of files w/errors, to limit
         // the work here.
+
+        // FIXME do this in the sync block?
         value diagnosticsMap = ArrayListMultimap { *diagnostics };
         for (documentId in compiledDocumentIds) {
             value forDocument = diagnosticsMap[documentId] else [];

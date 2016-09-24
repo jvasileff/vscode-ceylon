@@ -113,6 +113,30 @@ Boolean compileLevel1(LSContext context) {
         log.debug(()=>"c1-changedModulesToCompile: " +
                   changedModulesToCompile.collect(Module.signature).string);
 
+        "Module names for modules we can't compile that have changed files and that are
+         not queued for processing by level-2. Level-2 will clear changedDocumentIds for
+         those. (If queued for level-2, it would be for a module descriptor change.)"
+        value changedModuleNamesNotForBackend
+            =   moduleNamesWithChangedFiles.select((moduleName)
+                =>  !moduleName in currentModuleNamesForBackend
+                    && !moduleName in context.level2QueuedModuleNames
+                    && !moduleName in context.level2RefreshingModuleNames);
+
+        log.debug(()=>"c1-changedModuleNamesNotForBackend: " +
+                  changedModuleNamesNotForBackend.string);
+
+        // clear changed documentIds for modules we don't care about
+        context.changedDocumentIds.removeAll {
+            context.changedDocumentIds.select((documentId)
+                =>  if (exists sf = sourceFileForDocumentId {
+                        context.sourceDirectories;
+                        documentId;
+                    })
+                    then changedModuleNamesNotForBackend.any((m)
+                        =>  packageBelongsToModule(packageForSourceFile(sf), m))
+                    else false);
+        };
+
         "all cached modules that may not be changed, but do have visibility to a changed
          module."
         value provisionallyDirtyModules

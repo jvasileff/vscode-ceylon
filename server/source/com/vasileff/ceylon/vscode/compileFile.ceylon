@@ -15,10 +15,6 @@ import com.vasileff.ceylon.dart.compiler {
     compileDartSP,
     javaList
 }
-import com.vasileff.ceylon.vscode.internal {
-    newDiagnostic,
-    rangeForMessage
-}
 
 import io.typefox.lsapi {
     DiagnosticSeverity

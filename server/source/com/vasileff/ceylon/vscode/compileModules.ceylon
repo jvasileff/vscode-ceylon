@@ -13,12 +13,6 @@ import com.redhat.ceylon.model.typechecker.model {
 import com.vasileff.ceylon.dart.compiler {
     compileDartSP
 }
-import com.vasileff.ceylon.vscode.internal {
-    virtualFilesFolders,
-    newDiagnostic,
-    log,
-    suppressWarningsFromConfig
-}
 
 import io.typefox.lsapi {
     DiagnosticSeverity

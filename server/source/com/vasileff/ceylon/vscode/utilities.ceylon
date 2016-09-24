@@ -13,9 +13,6 @@ import com.redhat.ceylon.model.typechecker.model {
     Module,
     ModuleImport
 }
-import ceylon.logging {
-    debug
-}
 import com.redhat.ceylon.common.config {
     CeylonConfig,
     DefaultToolOptions

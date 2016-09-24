@@ -34,16 +34,6 @@ import com.redhat.ceylon.model.typechecker.model {
 import com.vasileff.ceylon.dart.compiler {
     ReportableException
 }
-import com.vasileff.ceylon.vscode.internal {
-    forceWrapJavaJson,
-    log,
-    JsonObject,
-    setLogPriority,
-    ReportedException,
-    eq,
-    LSContext,
-    launchLevel1Compiler
-}
 
 import io.typefox.lsapi {
     CodeActionParams,

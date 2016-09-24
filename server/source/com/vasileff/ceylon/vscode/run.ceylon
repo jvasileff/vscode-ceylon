@@ -1,9 +1,3 @@
-import com.vasileff.ceylon.vscode.internal {
-    log,
-    consumer,
-    setLogPriority
-}
-
 import io.typefox.lsapi.services.json {
     MessageJsonHandler,
     StreamMessageReader,

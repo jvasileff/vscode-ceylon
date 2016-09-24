@@ -10,10 +10,6 @@ import com.redhat.ceylon.compiler.typechecker.tree {
     Tree,
     Node
 }
-import com.vasileff.ceylon.vscode.internal {
-    newRange,
-    newPosition
-}
 
 import io.typefox.lsapi.impl {
     RangeImpl,

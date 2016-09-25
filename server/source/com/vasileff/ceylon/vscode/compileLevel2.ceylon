@@ -204,7 +204,7 @@ Boolean compileLevel2(LSContext context) {
     }
 
     try {
-        value [newModules, compiledDocumentIds, diagnostics]
+        value [newModules, phasedUnits, compiledDocumentIds, diagnostics]
             =   compileModules {
                     moduleNamesToCompile = moduleNamesToCompile;
                     generateOutput = context.generateOutput;
@@ -215,6 +215,13 @@ Boolean compileLevel2(LSContext context) {
                 };
 
         synchronize(context, () {
+            // save phasedUnits
+            context.phasedUnits.putAll {
+                *phasedUnits
+                    .group((pu) => pu.\ipackage?.\imodule?.nameAsString else "$")
+                    .filterKeys(not("$".equals))
+            };
+
             // add results to the current context.cache
 
             log.debug(()=>"c2-cache-before-updating: \

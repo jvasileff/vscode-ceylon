@@ -14,6 +14,9 @@ import ceylon.interop.java {
 import com.redhat.ceylon.common.config {
     CeylonConfig
 }
+import com.redhat.ceylon.compiler.typechecker.context {
+    PhasedUnit
+}
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
@@ -59,6 +62,9 @@ shared interface LSContext satisfies MessageTracer {
 
     shared formal MutableMap<String, String> documents;
     shared formal MutableSet<String> changedDocumentIds;
+
+    "A map from module name to PhasedUnits."
+    shared formal MutableMap<String, [PhasedUnit*]> phasedUnits;
 
     "The source directories relative to [[rootDirectory]]. Each directory must be
      normalized (i.e. no '..' segments), must not begin with a '.', and must end in

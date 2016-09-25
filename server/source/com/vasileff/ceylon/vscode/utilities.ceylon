@@ -157,6 +157,7 @@ shared
     }
 
     "Typechecker Modules, obtained by visiting the phased units"
+    suppressWarnings("unusedDeclaration")
     value modules
         =   CeylonIterable(phasedUnits.phasedUnits).collect<Module?>((pu)
             =>  pu.visitSrcModulePhase() else null).coalesced;

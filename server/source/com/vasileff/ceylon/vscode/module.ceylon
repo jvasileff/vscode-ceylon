@@ -4,6 +4,7 @@ module com.vasileff.ceylon.vscode "0.0.0" {
     shared import ceylon.file "1.3.0";
     shared import ceylon.buffer "1.3.0";
     shared import ceylon.logging "1.3.0";
+    shared import ceylon.markdown.core "1.0.0";
     shared import ceylon.collection "1.3.0";
     shared import ceylon.interop.java "1.3.0";
     shared import com.redhat.ceylon.ide.common "1.3.0";

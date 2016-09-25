@@ -18,12 +18,16 @@ import ceylon.interop.java {
     CeylonMutableSet,
     JavaComparator,
     CeylonIterable,
-    synchronize
+    synchronize,
+    javaString
 }
 
 import com.redhat.ceylon.common.config {
     DefaultToolOptions,
     CeylonConfig
+}
+import com.redhat.ceylon.compiler.typechecker.context {
+    PhasedUnit
 }
 import com.redhat.ceylon.model.typechecker.context {
     TypeCache
@@ -75,7 +79,8 @@ import io.typefox.lsapi {
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
-    CompletionItemBuilder
+    CompletionItemBuilder,
+    HoverBuilder
 }
 import io.typefox.lsapi.impl {
     InitializeResultImpl,
@@ -84,7 +89,9 @@ import io.typefox.lsapi.impl {
     CompletionOptionsImpl,
     DiagnosticImpl,
     CompletionListImpl,
-    CompletionItemImpl
+    CompletionItemImpl,
+    MarkedStringImpl,
+    HoverImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -98,6 +105,9 @@ import io.typefox.lsapi.services.transport.trace {
 
 import java.io {
     JFile=File
+}
+import java.lang {
+    JBoolean=Boolean
 }
 import java.util {
     List
@@ -133,6 +143,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
     documents = HashMap<String, String>();
     changedDocumentIds = HashSet<String>();
+    phasedUnits = HashMap<String, [PhasedUnit*]>();
 
     level2QueuedRoots = HashSet<Module>();
     level2QueuedModuleNames = HashSet<String>();
@@ -218,7 +229,9 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         value capabilities = ServerCapabilitiesImpl();
 
         capabilities.textDocumentSync = TextDocumentSyncKind.incremental;
-        capabilities.completionProvider = CompletionOptionsImpl();
+        capabilities.setHoverProvider(JBoolean(true));
+        capabilities.completionProvider = CompletionOptionsImpl(JBoolean(false),
+                JavaList([javaString(".")]));
         result.capabilities = capabilities;
 
         return CompletableFuture.completedFuture<InitializeResult>(result);
@@ -245,31 +258,52 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
         shared actual
         CompletableFuture<CompletionList> completion(TextDocumentPositionParams that) {
+            // TODO synchronize with compiles
+
             value documentId = toDocumentIdString(that.textDocument.uri);
 
             if (!inSourceDirectory(documentId)) {
-                // Senda an empty completion list for non-source files
+                // Always send an empty completion list for non-source files
                 value result = CompletionListImpl();
                 result.items = JavaList<CompletionItemImpl>([]);
                 return CompletableFuture.completedFuture<CompletionList>(result);
             }
 
-            assert (exists text
-                    =   documents[toDocumentIdString(that.textDocument.uri)]);
-            value lineCharacter = "``that.position.line``:``that.position.character``";
-            value builder = CompletionListBuilder();
+            if (exists moduleName
+                        =   moduleNameForDocumentId(
+                                    allModuleNames, sourceDirectories, documentId),
+                    nonempty units
+                        =   phasedUnits[moduleName]) {
 
-            builder.item(CompletionItemBuilder()
-                .label(lineCharacter)
-                .documentation("Docs for lineChar")
-                .detail("Detail for lineCharacter").build());
+                value completer
+                    =   Autocompleter {
+                            documentId;
+                            that.position.line + 1;
+                            that.position.character;
+                            units;
+                };
 
-            builder.item(CompletionItemBuilder()
-                .label("nothing")
-                .documentation("Docs for nothing")
-                .detail("Detail for nothing").build());
+                if (!completer.completions.empty) {
+                    value builder = CompletionListBuilder();
+                    for (completion in completer.completions) {
+                        builder.item(CompletionItemBuilder()
+                            .insertText(renderCompletionInsertText(completion))
+                            .label(renderCompletionLabel(completion))
+                            .detail(renderCompletionDetail(completion))
+                            .documentation(renderCompletionDocumentation(completion))
+                            // TODO set kind
+                            //.kind(CompletionItemKind.method)
+                            .build());
+                    }
+                    return CompletableFuture.completedFuture<CompletionList>(
+                            builder.build());
+                }
+            }
 
-            return CompletableFuture.completedFuture<CompletionList>(builder.build());
+            // nothing found, but mark incomplete since it may be because we haven't
+            // finished a compile
+            return CompletableFuture.completedFuture<CompletionList>(
+                CompletionListBuilder().incomplete(true).build());
         }
 
         shared actual
@@ -395,8 +429,42 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
             =>  null;
 
         shared actual
-        CompletableFuture<Hover>? hover(TextDocumentPositionParams that)
-            =>  null;
+        CompletableFuture<Hover>? hover(TextDocumentPositionParams that) {
+            // TODO synchronize with compiles
+
+            value documentId = toDocumentIdString(that.textDocument.uri);
+
+            if (!inSourceDirectory(documentId)) {
+                // Always send an empty Hover for non-source files
+                return CompletableFuture.completedFuture<Hover>(
+                    HoverImpl(JavaList<MarkedStringImpl>([]), null));
+            }
+
+            if (exists moduleName
+                        =   moduleNameForDocumentId(
+                                allModuleNames, sourceDirectories, documentId),
+
+                    nonempty units
+                        =   phasedUnits[moduleName],
+
+                    exists declaration
+                        =   findDeclaration {
+                                documentId = documentId;
+                                row = that.position.line + 1;
+                                col = that.position.character;
+                                phasedUnits = units;
+                            }) {
+
+                value docs = getDeclarationInfo(declaration).string;
+                value hover = HoverBuilder();
+                hover.content(MarkedStringImpl(MarkedStringImpl.plainString, docs));
+                return CompletableFuture.completedFuture<Hover>(hover.build());
+            }
+
+            // nothing found. Send an empty Hover
+            return CompletableFuture.completedFuture<Hover>(
+                HoverImpl(JavaList<MarkedStringImpl>([]), null));
+        }
 
         shared actual
         void onPublishDiagnostics(Consumer<PublishDiagnosticsParams> that)

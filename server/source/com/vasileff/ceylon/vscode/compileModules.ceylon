@@ -7,6 +7,9 @@ import com.redhat.ceylon.common.config {
 import com.redhat.ceylon.compiler.typechecker.analyzer {
     UsageWarning
 }
+import com.redhat.ceylon.compiler.typechecker.context {
+    PhasedUnit
+}
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
@@ -23,7 +26,7 @@ import io.typefox.lsapi.impl {
 
 "Returns the compiled modules, a list of the compiled documentIds, and all diagnostics."
 shared
-[[Module*], [String*], [<String->DiagnosticImpl>*]] compileModules(
+[[Module*], [PhasedUnit*], [String*], [<String->DiagnosticImpl>*]] compileModules(
         [String*] sourceDirectories,
         Map<String, [<String -> String>*]> listingsByModuleName,
         {Module*} moduleCache,
@@ -54,7 +57,7 @@ shared
     log.debug("compile begin: generateOutput=``outputRepositoryManager exists``; \
                modules=``moduleNamesToCompile``");
 
-    value [cuList, status, messages, modules] = compileDartSP {
+    value [cuList, status, messages, modules, phasedUnits] = compileDartSP {
         moduleFilters = moduleNamesToCompile;
         virtualFiles = sourceVirtualFileFolders;
         moduleCache = cacheWithoutModulesToCompile;
@@ -66,6 +69,7 @@ shared
 
     return [
         modules,
+        phasedUnits,
         listingsToCompile.keys.sequence(),
         messages
             .filter((_ -> m)

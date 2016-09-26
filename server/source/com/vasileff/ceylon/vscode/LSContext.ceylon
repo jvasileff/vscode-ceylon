@@ -232,7 +232,7 @@ shared interface LSContext satisfies MessageTracer {
                 try {
                     runArgument();
                 }
-                catch (AssertionError | Exception t) {
+                catch (Throwable t) {
                     onError(t.message, t);
                 }
             }

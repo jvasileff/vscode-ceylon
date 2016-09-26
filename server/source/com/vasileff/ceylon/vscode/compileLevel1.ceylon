@@ -305,7 +305,7 @@ Boolean compileLevel1(LSContext context) {
             context.publishDiagnostics.accept(p);
         }
     }
-    catch (Exception | AssertionError e) {
+    catch (Throwable e) {
         // add back the documentIds
         synchronize(context, () {
             context.changedDocumentIds.addAll(changedDocumentIdsToClear);

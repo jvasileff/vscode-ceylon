@@ -51,12 +51,15 @@ import java.util {
 import io.typefox.lsapi.services.transport.trace {
     MessageTracer
 }
+import java.lang {
+    Error
+}
 
-class AssertionException(AssertionError error) extends Exception(null, error) {}
+class WrappedError(Error error) extends Exception(null, error) {}
 
-"A wraper for [[LanguageServer]]s that catches [[AssertionError]]s and rethrows them
- as [[AssertionException]]s. This is necessary, since `java.lang.Error`s are not caught by
- the framework and basically hose the server."
+"A wraper for [[LanguageServer]]s that catches [[AssertionError]]s and [[Error]]s and
+ rethrows them as [[WrappedError]]s. This is necessary, since `java.lang.Error`s are not
+ caught by the framework and basically hose the server."
 class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         satisfies LanguageServer & MessageTracer {
 
@@ -64,8 +67,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         try {
             delegate.exit();
         }
-        catch (AssertionError e) {
-            throw AssertionException(e);
+        catch (Error e) {
+            throw WrappedError(e);
         }
     }
 
@@ -74,8 +77,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         try {
             return delegate.initialize(that);
         }
-        catch (AssertionError e) {
-            throw AssertionException(e);
+        catch (Error e) {
+            throw WrappedError(e);
         }
     }
 
@@ -83,8 +86,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         try {
             delegate.onTelemetryEvent(that);
         }
-        catch (AssertionError e) {
-            throw AssertionException(e);
+        catch (Error e) {
+            throw WrappedError(e);
         }
     }
 
@@ -100,8 +103,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.codeAction(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -110,8 +113,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.codeLens(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -120,8 +123,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.completion(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -130,8 +133,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.definition(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -140,8 +143,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.didChange(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -150,8 +153,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.didClose(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -160,8 +163,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.didOpen(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -170,8 +173,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.didSave(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -180,8 +183,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.documentHighlight(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -190,8 +193,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.documentSymbol(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -200,8 +203,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.formatting(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -210,8 +213,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.hover(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -220,8 +223,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.onPublishDiagnostics(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -230,8 +233,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.onTypeFormatting(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -240,8 +243,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.rangeFormatting(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -250,8 +253,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.references(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -260,8 +263,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.rename(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -270,8 +273,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.resolveCodeLens(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -280,8 +283,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.resolveCompletionItem(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -290,8 +293,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.signatureHelp(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
     };
@@ -306,8 +309,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.onLogMessage(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -316,8 +319,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.onShowMessage(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -326,8 +329,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.onShowMessageRequest(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
     };
@@ -342,8 +345,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.didChangeConfiguraton(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -352,8 +355,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 delegate.didChangeWatchedFiles(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -362,8 +365,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             try {
                 return delegate.symbol(that);
             }
-            catch (AssertionError e) {
-                throw AssertionException(e);
+            catch (Error e) {
+                throw WrappedError(e);
             }
         }
 
@@ -373,8 +376,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         try {
             delegate.onError(s, throwable);
         }
-        catch (AssertionError e) {
-            throw AssertionException(e);
+        catch (Error e) {
+            throw WrappedError(e);
         }
     }
 
@@ -382,8 +385,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         try {
             delegate.onRead(message, s);
         }
-        catch (AssertionError e) {
-            throw AssertionException(e);
+        catch (Error e) {
+            throw WrappedError(e);
         }
     }
 
@@ -391,8 +394,8 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         try {
             delegate.onWrite(message, s);
         }
-        catch (AssertionError e) {
-            throw AssertionException(e);
+        catch (Error e) {
+            throw WrappedError(e);
         }
     }
 }

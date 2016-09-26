@@ -107,7 +107,8 @@ import java.io {
     JFile=File
 }
 import java.lang {
-    JBoolean=Boolean
+    JBoolean=Boolean,
+    Error
 }
 import java.util {
     List
@@ -687,7 +688,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
 
         while (true) {
             switch (t = throwable)
-            case (is AssertionException) {
+            case (is WrappedError) {
                 throwable = t.cause;
             }
             case (is ReportedException) {
@@ -706,16 +707,21 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         value unwrapped = throwable;
 
         if (exists unwrapped, !isReportedException) {
-            // Send an error message to the client. If its anything but a
+            // Send an error message to the client. If it's anything but a
             // ReportableException, prefix with "ExceptionType: "
+            //
+            // If it's a non AssertionError Error, prefix with "Fatal Error: "
             try {
-                value exceptionType
-                    =   if (!isReportableException)
-                        then let (cn = className(unwrapped))
-                             cn[((cn.lastOccurrence('.')else-1)+1)...] + ": "
-                        else "";
-
-                showError("``exceptionType``\
+                value prefix = StringBuilder();
+                if (!isReportableException) {
+                    if (unwrapped is Error && !unwrapped is AssertionError) {
+                        prefix.append("Fatal Error: ");
+                    }
+                    value cn = className(unwrapped);
+                    prefix.append(
+                        cn[((cn.lastOccurrence('.')else-1)+1)...] + ": ");
+                }
+                showError("``prefix``\
                            ``unwrapped.message.replace("\n", "; ")``\
                            \n\n``unwrapped.string``");
             }
@@ -725,6 +731,13 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
         }
 
         log.error(()=>"(onError) ``s else ""``", throwable);
+
+        if (exists unwrapped, unwrapped is Error && !unwrapped is AssertionError) {
+            // If from the main thread, this shuts down the server. We should probably
+            // do the same from background jobs too, although typechecker SOEs are
+            // really a problem.
+            throw unwrapped;
+        }
     }
 
     shared actual

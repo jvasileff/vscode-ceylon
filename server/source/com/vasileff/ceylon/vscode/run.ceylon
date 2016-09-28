@@ -54,6 +54,14 @@ void runApp([String*] arguments) {
     writer.setOnError(consumer((Throwable t) => log.error(t.string, t)));
 
     log.info("calling endpoint.connect()");
-    endpoint.connect(reader, writer);
-    log.info("run() finished");
+    try {
+        endpoint.connect(reader, writer);
+    }
+    catch (Throwable t) {
+        log.fatal("Fatal error", t);
+        throw t;
+    }
+    finally {
+        log.info("run() finished");
+    }
 }

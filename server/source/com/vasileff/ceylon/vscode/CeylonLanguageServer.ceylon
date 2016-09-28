@@ -714,7 +714,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer &CeylonLan
             try {
                 value prefix = StringBuilder();
                 if (!isReportableException) {
-                    if (unwrapped is Error && !unwrapped is AssertionError) {
+                    if (unwrapped is JavaError && !unwrapped is AssertionError) {
                         prefix.append("Fatal Error: ");
                     }
                     value cn = className(unwrapped);
@@ -732,7 +732,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer &CeylonLan
 
         log.error(()=>"(onError) ``s else ""``", throwable);
 
-        if (exists unwrapped, unwrapped is Error && !unwrapped is AssertionError) {
+        if (exists unwrapped, unwrapped is JavaError && !unwrapped is AssertionError) {
             // If from the main thread, this shuts down the server. We should probably
             // do the same from background jobs too, although typechecker SOEs are
             // really a problem.

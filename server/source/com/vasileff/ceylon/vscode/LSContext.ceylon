@@ -139,30 +139,34 @@ shared interface LSContext satisfies MessageTracer {
 
     "Inspect source for most recent list of modules."
     shared
+    [Module*] nonDefaultModulesInSources
+        =>    modulesFromModuleDescriptors {
+                sourceFolders = virtualFilesFolders {
+                    sourceDirectories = sourceDirectories;
+                    listings = documents;
+                };
+            };
+
+    "Inspect source for most recent list of modules."
+    shared
     [String*] allModuleNamesForBackend
         // TODO maintain a list instead of calculating it each time. Add/remove when
         //      module.ceylon changes are detected. We need to distinguish between
         //      all modules and modules for the backend (modules for other backends
         //      still serve to rule out files for the default module.)
-        =>  dartCompatibleModules {
-                modulesFromModuleDescriptors {
-                    sourceFolders = virtualFilesFolders {
-                        sourceDirectories = sourceDirectories;
-                        listings = documents;
-                    };
-                };
-            }.collect(Module.nameAsString);
+        =>  dartCompatibleModules(nonDefaultModulesInSources)
+                .map(Module.nameAsString)
+                .follow("default")
+                .sequence();
 
     "Inspect source for most recent list of modules."
     shared
     [String*] allModuleNames
         // TODO maintain a list instead of calculating it each time
-        =>   modulesFromModuleDescriptors {
-                sourceFolders = virtualFilesFolders {
-                    sourceDirectories = sourceDirectories;
-                    listings = documents;
-                };
-            }.collect(Module.nameAsString);
+        =>  nonDefaultModulesInSources
+                .map(Module.nameAsString)
+                .follow("default")
+                .sequence();
 
     shared
     Map<String, [<String->String>*]> listingsByModuleName

@@ -42,6 +42,9 @@ Boolean compileLevel2(LSContext context) {
         value currentModuleNamesForBackend
             =   context.allModuleNamesForBackend;
 
+        value listingsByModuleName
+            =   context.listingsByModuleName;
+
         "we're starting a new level-2 compile; one shouldn't already be running"
         assert (context.level2RefreshingModuleNames.empty);
 
@@ -128,7 +131,7 @@ Boolean compileLevel2(LSContext context) {
 
         if (!removedModuleNames.empty) {
             // clear diagnostics for all files of removed modules
-            for (documentId in expand(context.listingsByModuleName
+            for (documentId in expand(listingsByModuleName
                         .getAll(removedModuleNames).coalesced)
                         .map(Entry.key)) {
                 value p = PublishDiagnosticsParamsImpl();
@@ -162,6 +165,31 @@ Boolean compileLevel2(LSContext context) {
                             =>  packageBelongsToModule(packageForSourceFile(sf), m))
                         else false);
             };
+
+            // Mark all files in removed modules as dirty if their new module is the
+            // default module or a module for the configured backend, so that the module
+            // they belong to now will be recompiled to include them. See notes in level-1
+            // about improving this.
+            value documentIdsAssignedToNewModule
+                =   expand {
+                        *listingsByModuleName
+                            .getAll(currentModuleNamesForBackend)
+                            .coalesced
+                    }
+                    .map(Entry.key)
+                    .filter((documentId)
+                        =>  if (exists sf = sourceFileForDocumentId {
+                                context.sourceDirectories;
+                                documentId;
+                            })
+                            then removedModuleNames.any((m)
+                                =>  packageBelongsToModule(packageForSourceFile(sf), m))
+                            else false);
+
+            context.changedDocumentIds.addAll(documentIdsAssignedToNewModule);
+
+            log.debug(()=>"c2-documentIdsAssignedToNewModule: \
+                           ``documentIdsAssignedToNewModule``");
         }
 
         value changedDocumentIdsToClear
@@ -193,7 +221,7 @@ Boolean compileLevel2(LSContext context) {
         return [
             moduleNamesToCompile,
             moduleCache,
-            context.listingsByModuleName,
+            listingsByModuleName,
             changedDocumentIdsToClear
         ];
     });

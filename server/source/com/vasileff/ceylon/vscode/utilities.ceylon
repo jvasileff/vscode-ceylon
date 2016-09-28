@@ -118,8 +118,8 @@ shared
         };
 
 "Returns a list of modules for all module descriptors found in [[sourceFolders]].
- For any module descriptors that could not be processed by the type checker, a
- default/empty [[Module]] will be returned."
+ For any module descriptors that could not be processed by the type checker, an
+ empty [[Module]] will be returned."
 shared
 [Module*] modulesFromModuleDescriptors([VirtualFile*] sourceFolders) {
 

@@ -42,7 +42,7 @@ Boolean compileLevel1(LSContext context) {
         value currentModuleNamesForBackend
             =   context.allModuleNamesForBackend;
 
-        // Ignore modules with module descriptor changes. Level-2 will recompile them.
+        // Ignore modules with module descriptor changes. Have level-2 recompile them.
         // By adding to `level2QueuedModuleNames`, we'll also ignore their dependents,
         // which level-2 will also recompile.
         value moduleNamesWithDescriptorChanges
@@ -57,6 +57,7 @@ Boolean compileLevel1(LSContext context) {
 
         log.debug(()=>"c1-moduleNamesWithDescriptorChanges: \
                        ``moduleNamesWithDescriptorChanges``");
+
         context.level2QueuedModuleNames.addAll(moduleNamesWithDescriptorChanges);
 
         // Preconditions:
@@ -90,12 +91,21 @@ Boolean compileLevel1(LSContext context) {
         log.debug(()=>"c1-availableModulesForBackend: \
                        ``availableModulesForBackend.collect(Module.signature)``");
 
-
         value listingsByModuleName
             =   context.listingsByModuleName;
 
+        // If a module descriptor is removed, it will appear to the
+        // moduleNamesWithChangedFiles calculation as a regular source file, and
+        // the module that will inherit the removed module's sources will be marked
+        // as dirty (included in moduleNamesWithChangedFiles). But, the module may not
+        // be in availableModulesForBackend, and level-1 may clear the changedDocumentId
+        // before our next run. So, for now, level-2 marks all files in modules to be
+        // removed as changed (documentIdsAssignedToNewModule), which may result in
+        // unecessary recompiles. This should be improved.
+
+
         value moduleNamesWithChangedFiles
-            =>  context.changedDocumentIds.map {
+            =   context.changedDocumentIds.map {
                     (documentId) => moduleNameForDocumentId {
                         moduleNames = listingsByModuleName.keys;
                         sourceDirectories = context.sourceDirectories;
@@ -176,8 +186,14 @@ Boolean compileLevel1(LSContext context) {
                         context.sourceDirectories;
                         documentId;
                     })
-                    then moduleNamesToCompile.any((m)
-                        =>  packageBelongsToModule(packageForSourceFile(sf), m))
+                    then
+                        // it's in a module we're compiling
+                        moduleNamesToCompile.any((m)
+                            =>  packageBelongsToModule(packageForSourceFile(sf), m))
+                        // or it's in the default module, which we always compile if nec.
+                        || moduleNamesToCompile.contains("default")
+                            && context.allModuleNames.every((m)
+                                =>  !packageBelongsToModule(packageForSourceFile(sf), m))
                     else false);
 
         log.debug(()=>"c1-changedDocumentIdsToClear: ``changedDocumentIdsToClear``");

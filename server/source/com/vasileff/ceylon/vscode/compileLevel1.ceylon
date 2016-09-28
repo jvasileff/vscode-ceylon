@@ -60,6 +60,23 @@ Boolean compileLevel1(LSContext context) {
 
         context.level2QueuedModuleNames.addAll(moduleNamesWithDescriptorChanges);
 
+        "Modules that (if not new) currently or previously had illegally nested modules,
+         and therefore should be recompiled." // lightly tested
+        value sourceAdoptingModules
+            =   currentModuleNamesForBackend.select((m)
+                =>  !m in moduleNamesWithDescriptorChanges // already queued
+                    && moduleNamesWithDescriptorChanges.any((p)
+                        =>  packageBelongsToModule(p, m)));
+
+        if (!sourceAdoptingModules.empty) {
+            log.debug(()=>"c1-sourceAdoptingModules: \
+                           ``sourceAdoptingModules``");
+            context.level2QueuedModuleNames.addAll(sourceAdoptingModules);
+        }
+
+        // TODO we need to recompile the default module if any module descriptors were
+        //      added (the default module will lose sources)
+
         // Preconditions:
         //
         //    - no module will exist in the cache that has visibility to an uncached
@@ -94,15 +111,11 @@ Boolean compileLevel1(LSContext context) {
         value listingsByModuleName
             =   context.listingsByModuleName;
 
-        // If a module descriptor is removed, it will appear to the
-        // moduleNamesWithChangedFiles calculation as a regular source file, and
-        // the module that will inherit the removed module's sources will be marked
-        // as dirty (included in moduleNamesWithChangedFiles). But, the module may not
-        // be in availableModulesForBackend, and level-1 may clear the changedDocumentId
-        // before our next run. So, for now, level-2 marks all files in modules to be
-        // removed as changed (documentIdsAssignedToNewModule), which may result in
-        // unecessary recompiles. This should be improved.
-
+        // Conveniently, if a module descriptor is removed, it will appear to the
+        // moduleNamesWithChangedFiles calculation as a regular source file, and if its
+        // sources are now assigned to the default module, the defualt module will be
+        // marked as dirty (included in moduleNamesWithChangedFiles), and we'll recompile
+        // it.
 
         value moduleNamesWithChangedFiles
             =   context.changedDocumentIds.map {

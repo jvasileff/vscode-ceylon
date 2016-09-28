@@ -165,31 +165,6 @@ Boolean compileLevel2(LSContext context) {
                             =>  packageBelongsToModule(packageForSourceFile(sf), m))
                         else false);
             };
-
-            // Mark all files in removed modules as dirty if their new module is the
-            // default module or a module for the configured backend, so that the module
-            // they belong to now will be recompiled to include them. See notes in level-1
-            // about improving this.
-            value documentIdsAssignedToNewModule
-                =   expand {
-                        *listingsByModuleName
-                            .getAll(currentModuleNamesForBackend)
-                            .coalesced
-                    }
-                    .map(Entry.key)
-                    .filter((documentId)
-                        =>  if (exists sf = sourceFileForDocumentId {
-                                context.sourceDirectories;
-                                documentId;
-                            })
-                            then removedModuleNames.any((m)
-                                =>  packageBelongsToModule(packageForSourceFile(sf), m))
-                            else false);
-
-            context.changedDocumentIds.addAll(documentIdsAssignedToNewModule);
-
-            log.debug(()=>"c2-documentIdsAssignedToNewModule: \
-                           ``documentIdsAssignedToNewModule``");
         }
 
         value changedDocumentIdsToClear

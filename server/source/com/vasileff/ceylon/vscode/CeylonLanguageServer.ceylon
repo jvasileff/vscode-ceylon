@@ -107,8 +107,7 @@ import java.io {
     JFile=File
 }
 import java.lang {
-    JBoolean=Boolean,
-    Error
+    JBoolean=Boolean
 }
 import java.util {
     List

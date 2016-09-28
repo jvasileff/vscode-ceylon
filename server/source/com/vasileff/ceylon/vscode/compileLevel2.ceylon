@@ -60,10 +60,6 @@ Boolean compileLevel2(LSContext context) {
         //    only if level-1 has queued them (level-2 never queues cached modules since
         //    doing so could interfere with in-progress level-1 compiles).
 
-        // TODO in theory we need to worry about module versions since a module could
-        //      potentially import an older version of a module that exists in the
-        //      workspace.
-
         "Modules we have source code for, but are not cached. These are newly added
          modules. Note that (except default maybe) these should already be in
          level2QueuedModuleNames due to module descriptor changes, unless they are

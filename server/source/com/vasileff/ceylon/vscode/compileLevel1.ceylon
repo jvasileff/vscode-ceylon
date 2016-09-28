@@ -213,6 +213,10 @@ Boolean compileLevel1(LSContext context) {
         log.debug(()=>"c1-moduleCache context: \
                        ``sort(context.moduleCache.collect(Module.signature))``");
 
+        // Note that we must ignore versions when expiring from the cache. Attempting
+        // to keep a different version of a module we are compiling in the cache will
+        // break the compile since then the typechecker assigns units to modules (see
+        // parseUnit() and ModuleSourceMapper), it does so without version info.
         value moduleCache
             =   set(context.moduleCache.filter((m)
                 =>  !m.nameAsString in moduleNamesToCompile));

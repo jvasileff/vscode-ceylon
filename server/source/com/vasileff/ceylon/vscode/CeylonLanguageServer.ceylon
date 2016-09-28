@@ -124,7 +124,7 @@ import java.util.\ifunction {
     Consumer
 }
 
-class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContext {
+class CeylonLanguageServer() satisfies LanguageServer & MessageTracer &CeylonLanguageServerContext {
     shared actual variable Set<Module> moduleCache = emptySet;
 
     shared actual late Consumer<PublishDiagnosticsParams> publishDiagnostics;
@@ -151,7 +151,7 @@ class CeylonLanguageServer() satisfies LanguageServer & MessageTracer & LSContex
     level2RefreshingModuleNames = HashSet<String>();
     cachedModuleNamesCompiledFromSource = HashSet<String>();
 
-    LSContext context => this;
+    CeylonLanguageServerContext context => this;
 
     function inSourceDirectory(String documentId)
         =>  sourceDirectories.any((d) => documentId.startsWith(d));

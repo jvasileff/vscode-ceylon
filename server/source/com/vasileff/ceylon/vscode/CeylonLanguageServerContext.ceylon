@@ -47,7 +47,7 @@ import java.util.\ifunction {
     Consumer
 }
 
-shared interface LSContext satisfies MessageTracer {
+shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal Consumer<PublishDiagnosticsParams> publishDiagnostics;
     shared formal Consumer<MessageParams> logMessage;
     shared formal Consumer<MessageParams> showMessage;

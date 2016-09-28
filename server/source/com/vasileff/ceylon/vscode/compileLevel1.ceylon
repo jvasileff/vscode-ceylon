@@ -19,7 +19,7 @@ import io.typefox.lsapi.impl {
 }
 
 shared
-void launchLevel1Compiler(LSContext context) {
+void launchLevel1Compiler(CeylonLanguageServerContext context) {
     // launch a compile task if one isn't running
     if (context.compilingLevel1.compareAndSet(false, true)) {
         log.debug("launching level-1 compiler");
@@ -34,7 +34,7 @@ void launchLevel1Compiler(LSContext context) {
     }
 }
 
-Boolean compileLevel1(LSContext context) {
+Boolean compileLevel1(CeylonLanguageServerContext context) {
 
     value [moduleNamesToCompile, moduleCache, listingsByModuleName,
             changedDocumentIdsToClear] = synchronize(context, () {

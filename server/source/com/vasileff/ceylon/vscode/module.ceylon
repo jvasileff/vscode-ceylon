@@ -14,7 +14,7 @@ module com.vasileff.ceylon.vscode "0.0.0" {
     shared import com.vasileff.ceylon.dart.compiler "1.3.0-DP3";
 
     // ceylon.markdown.core is not in Herd
-    shared import ceylon.markdown.core "1.0.0";
+    shared import ceylon.markdown.core "1.0.0-vscode";
 
     shared import maven:"io.typefox.lsapi:io.typefox.lsapi" "0.3.0-SNAPSHOT";
     shared import maven:"io.typefox.lsapi:io.typefox.lsapi.services" "0.3.0-SNAPSHOT";

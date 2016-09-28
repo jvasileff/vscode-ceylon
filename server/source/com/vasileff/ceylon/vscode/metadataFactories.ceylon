@@ -75,7 +75,7 @@ SignatureInfo getSignatureInfo(Declaration declaration)
                         DeclarationKind.unknown;
             type
                 =   if (is TypedDeclaration declaration)
-                    then declaration.type.asString()
+                    then (declaration.type else declaration.unit.unknownType).asString()
                     else null;
             isVoid
                 =   if (is Function declaration, declaration.declaredVoid)

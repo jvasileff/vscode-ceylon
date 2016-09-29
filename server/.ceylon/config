@@ -9,7 +9,6 @@ output=./modules
 #output=../client/out/modules
 #lookup=../client/out/modules
 lookup=../client/lib
-remote=aether:settings.xml
 
 [compiler]
 source=source

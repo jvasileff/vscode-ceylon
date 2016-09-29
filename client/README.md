@@ -1,7 +1,8 @@
 # Visual Studo Code Language Support for Ceylon
 
 Provides support for editing and compiling Ceylon projects in Visual Studio
-Code. Initially, the Dart backend is supported.
+Code. Initially, the Dart backend on non-Windows operating systems is
+supported.
 
 ## Features
 
@@ -112,6 +113,7 @@ using the [Github issue tracker](https://github.com/jvasileff/vscode-ceylon/issu
 
 Known issues and limitations include:
 
+- Microsoft Windows is not currently supported
 - Source directory configuration changes made in `.ceylon/config` and Visual
   Studio Code settings will not take effect until restart
 - Completion and hover are not synchronized with builds, so stale incorrect

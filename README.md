@@ -1,4 +1,4 @@
-# Visual Studo Code Language Support for Ceylon
+# Visual Studio Code Language Support for Ceylon
 
 Provides support for editing and compiling Ceylon projects in Visual Studio
 Code. Initially, the Dart backend on non-Windows operating systems is

@@ -2,9 +2,13 @@
     "name": "vscode-ceylon",
     "displayName": "vscode-ceylon",
     "description": "VSCode Language Client for Ceylon",
-    "version": "0.0.1",
+    "version": "0.0.0",
     "publisher": "JohnVasileff",
     "license": "Apache License Version 2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/jvasileff/vscode-ceylon.git"
+    },
     "engines": {
         "vscode": "^1.4.0"
     },

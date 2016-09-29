@@ -1,9 +1,9 @@
 # Visual Studio Code Language Support for Ceylon
 
-Provides support for editing and compiling Ceylon projects in Visual Studio
-Code. Initially, the Dart backend on non-Windows operating systems is
-supported. Non-cross platform Ceylon modules for the Java and JavaScript
-backends are currently ignored by this extension.
+This extension provides support for editing and compiling Ceylon projects in
+Visual Studio Code. Initially, the Dart backend on non-Windows operating
+systems is supported. Non-cross platform Ceylon modules for the Java and
+JavaScript backends are currently ignored by this extension.
 
 ## Features
 

@@ -179,7 +179,7 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
             };
 
     shared
-    String toDocumentIdString(String | Path uri) {
+    String? toDocumentIdString(String | Path uri) {
         // The source directory is included in the documentId. For example,
         // 'source/com/example/file.ceylon', or if there is no root directory,
         // '/path/to/file.ceylon'.
@@ -193,7 +193,11 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
                 else if (uri.startsWith("file:"))
                     then parseURI(uri)
                 else
-                    parsePath(uri);
+                    null;
+
+        if (!exists path) {
+            return null;
+        }
 
         value documentId
             =   if (exists rootDirectory = rootDirectory)
@@ -203,6 +207,16 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
 
         return documentId;
     }
+
+    shared
+    Boolean inSourceDirectory(String documentId)
+        =>  sourceDirectories.any((d) => documentId.startsWith(d));
+
+    shared
+    Boolean isSourceFile(String? documentId)
+        =>  if (exists documentId)
+            then inSourceDirectory(documentId)
+            else false;
 
     shared see(`function toDocumentIdString`)
     String toUri(String documentId)

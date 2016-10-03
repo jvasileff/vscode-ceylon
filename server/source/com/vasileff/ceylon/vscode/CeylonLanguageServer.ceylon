@@ -154,9 +154,6 @@ class CeylonLanguageServer()
 
     CeylonLanguageServerContext context => this;
 
-    function inSourceDirectory(String documentId)
-        =>  sourceDirectories.any((d) => documentId.startsWith(d));
-
     shared actual
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
         log.info("initialize called");
@@ -264,12 +261,13 @@ class CeylonLanguageServer()
 
             value documentId = toDocumentIdString(that.textDocument.uri);
 
-            if (!inSourceDirectory(documentId)) {
+            if (!isSourceFile(documentId)) {
                 // Always send an empty completion list for non-source files
                 value result = CompletionListImpl();
                 result.items = JavaList<CompletionItemImpl>([]);
                 return CompletableFuture.completedFuture<CompletionList>(result);
             }
+            assert (exists documentId);
 
             if (exists moduleName
                         =   moduleNameForDocumentId(
@@ -320,9 +318,10 @@ class CeylonLanguageServer()
 
             value documentId = toDocumentIdString(that.textDocument.uri);
 
-            if (!inSourceDirectory(documentId)) {
+            if (!isSourceFile(documentId)) {
                 return;
             }
+            assert (exists documentId);
 
             synchronize(context, () {
                 value existingText = documents[documentId];
@@ -352,8 +351,9 @@ class CeylonLanguageServer()
                 return;
             }
 
-            value documentId = toDocumentIdString(that.textDocument.uri);
-            openDocuments.remove(documentId);
+            if (exists documentId = toDocumentIdString(that.textDocument.uri)) {
+                openDocuments.remove(documentId);
+            }
         }
 
         shared actual
@@ -382,6 +382,10 @@ class CeylonLanguageServer()
             // when didChange() occurs before didChangeWatchedFiles().
 
             value documentId = toDocumentIdString(that.textDocument.uri);
+            if (!exists documentId) {
+                return;
+            }
+
             openDocuments.add(documentId);
 
             if (!inSourceDirectory(documentId)) {
@@ -436,11 +440,12 @@ class CeylonLanguageServer()
 
             value documentId = toDocumentIdString(that.textDocument.uri);
 
-            if (!inSourceDirectory(documentId)) {
+            if (!isSourceFile(documentId)) {
                 // Always send an empty Hover for non-source files
                 return CompletableFuture.completedFuture<Hover>(
                     HoverImpl(JavaList<MarkedStringImpl>([]), null));
             }
+            assert (exists documentId);
 
             if (exists moduleName
                         =   moduleNameForDocumentId(
@@ -544,9 +549,10 @@ class CeylonLanguageServer()
                 }
 
                 value documentId = toDocumentIdString(change.uri);
-                if (!inSourceDirectory(documentId)) {
+                if (!isSourceFile(documentId)) {
                     continue;
                 }
+                assert (exists documentId);
                 if (change.type == FileChangeType.deleted) {
                     value originalText = documents.remove(documentId);
                     log.debug("deleted file '``documentId``'");
@@ -667,9 +673,10 @@ class CeylonLanguageServer()
                             then file.name[dot+1...]
                             else "";
                     if (extension in ["ceylon", "dart", "js", "java"]) {
-                        value documentId = toDocumentIdString(file.path);
-                        documents.put(documentId, readFile(file));
-                        count++;
+                        if (exists documentId = toDocumentIdString(file.path)) {
+                            documents.put(documentId, readFile(file));
+                            count++;
+                        }
                     }
                 }
             });

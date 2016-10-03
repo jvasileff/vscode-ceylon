@@ -2,7 +2,7 @@
     "name": "vscode-ceylon",
     "displayName": "vscode-ceylon",
     "description": "VSCode Language Client for Ceylon",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "publisher": "JohnVasileff",
     "license": "Apache License Version 2.0",
     "repository": {

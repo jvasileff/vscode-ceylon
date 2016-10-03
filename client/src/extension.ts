@@ -78,7 +78,7 @@ export function activate(context: VSCode.ExtensionContext) {
                     '--rep', lib,
                     '--rep', modules,
                     '--auto-export-maven-dependencies',
-                    'com.vasileff.ceylon.vscode/0.0.0',
+                    'com.vasileff.ceylon.vscode/0.0.1',
                     port.toString(),
                     VSCode.workspace
                         .getConfiguration("ceylon")

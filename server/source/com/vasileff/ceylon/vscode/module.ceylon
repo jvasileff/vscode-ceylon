@@ -1,5 +1,5 @@
 native ("jvm")
-module com.vasileff.ceylon.vscode "0.0.0" {
+module com.vasileff.ceylon.vscode "0.0.1" {
     shared import java.base "8";
     shared import ceylon.file "1.3.0";
     shared import ceylon.buffer "1.3.0";

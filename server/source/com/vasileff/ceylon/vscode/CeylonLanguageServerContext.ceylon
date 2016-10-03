@@ -5,7 +5,8 @@ import ceylon.collection {
 import ceylon.file {
     Directory,
     Path,
-    parsePath
+    parsePath,
+    parseURI
 }
 import ceylon.interop.java {
     createJavaStringArray
@@ -179,28 +180,36 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
 
     shared
     String toDocumentIdString(String | Path uri) {
-        // Note that the source directory is included in the documentId. For
-        // example, 'source/com/example/file.ceylon', or if there is no root
-        // directory, '/path/to/file.ceylon'.
-        value path
-                =   if (is Path uri)
-        then uri
-        else if (uri.startsWith("file:///"))
-        // we need the right kind of Java nio path
-        then parsePath(uri[7...])
-        else parsePath(uri);
+        // The source directory is included in the documentId. For example,
+        // 'source/com/example/file.ceylon', or if there is no root directory,
+        // '/path/to/file.ceylon'.
+        //
+        // Note that on windows, documentIds with absolute paths (if there is
+        // no root directory) may start with 'drive:' rather than '/'.
 
-        return if (exists rootDirectory = rootDirectory)
-        then path.relativePath(rootDirectory.path).string
-        else path.string;
+        value path
+            =   if (is Path uri)
+                    then uri
+                else if (uri.startsWith("file:"))
+                    then parseURI(uri)
+                else
+                    parsePath(uri);
+
+        value documentId
+            =   if (exists rootDirectory = rootDirectory)
+                then path.relativePath(rootDirectory.path)
+                        .string.replace(operatingSystem.fileSeparator.string, "/")
+                else path.string.replace(operatingSystem.fileSeparator.string, "/");
+
+        return documentId;
     }
 
     shared see(`function toDocumentIdString`)
     String toUri(String documentId)
         =>  if (exists rootDirectory = rootDirectory)
-            then "file://" + rootDirectory.path.childPath(documentId)
-                                .absolutePath.normalizedPath.string
-            else "file://" + documentId;
+            then rootDirectory.path.childPath(documentId)
+                    .absolutePath.normalizedPath.uriString
+            else parsePath(documentId).uriString;
 
     shared
     void showInfo(String text) {

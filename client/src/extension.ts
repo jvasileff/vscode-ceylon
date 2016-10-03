@@ -52,9 +52,9 @@ export function activate(context: VSCode.ExtensionContext) {
                         ((error: Error, stdout, stderr) => {
                     if (error) {
                         VSCode.window.showErrorMessage(
-                            "Unable to verify the Ceylon version; the Ceylon " +
-                            "installation at " + ceylonExecutablePath +
-                            " may be damaged.");
+                            "JAVA_HOME not set? Unable to verify the Ceylon version " +
+                            "installed at " + ceylonExecutablePath +
+                            ": " + error.message);
                         return;
                     }
                     let version = stdout.trim().substring(15);
@@ -150,7 +150,7 @@ function findExecutable(binname: string) {
 
 function correctBinname(binname: string) {
 	if (process.platform === 'win32')
-		return binname + '.exe';
+		return binname + '.bat';
 	else
 		return binname;
 }

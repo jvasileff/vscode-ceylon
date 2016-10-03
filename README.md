@@ -1,9 +1,8 @@
 # Visual Studio Code Language Support for Ceylon
 
-This extension provides support for editing and compiling Ceylon projects in
-Visual Studio Code. Initially, the Dart backend on non-Windows operating
-systems is supported. Non-cross platform Ceylon modules for the Java and
-JavaScript backends are currently ignored by this extension.
+This extension provides support for editing and compiling Ceylon projects in Visual Studio
+Code. Currently, the Dart backend is supported. Non-cross platform Ceylon modules for the
+Java and JavaScript backends are ignored by this extension.
 
 ## Features
 
@@ -47,6 +46,12 @@ the following methods:
   on macOS)
 - Using the `CEYLON_HOME` environment variable
 - Using the system `PATH`
+
+Additionally, Microsoft Windows users must create a `JAVA_HOME` environment variable
+pointing to the path of the Java installation to use, if one doesn't already exists. The
+path may be something like `c:\Program Files\Java\jdk1.8.0_102`. To do this, search for
+"advanced system settings", click the "Environment Variables" button, and then click
+"New".
 
 ## Extension Settings
 

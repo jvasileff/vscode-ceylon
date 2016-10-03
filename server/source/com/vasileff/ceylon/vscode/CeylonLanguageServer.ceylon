@@ -123,7 +123,9 @@ import java.util.\ifunction {
     Consumer
 }
 
-class CeylonLanguageServer() satisfies LanguageServer & MessageTracer &CeylonLanguageServerContext {
+class CeylonLanguageServer()
+        satisfies LanguageServer & MessageTracer & CeylonLanguageServerContext {
+
     shared actual variable Set<Module> moduleCache = emptySet;
 
     shared actual late Consumer<PublishDiagnosticsParams> publishDiagnostics;

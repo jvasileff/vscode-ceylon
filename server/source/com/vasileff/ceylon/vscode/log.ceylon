@@ -52,7 +52,7 @@ Writer logWriter = (() {
                 ".log";
             };
 
-    return tempFile.Overwriter();
+    return tempFile.Overwriter("UTF-8");
 })();
 
 shared

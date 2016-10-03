@@ -27,16 +27,16 @@ edit while dependent modules are compiled in the background
   then `ceylon install-dart --out +USER`
 - [Visual Studio Code](https://code.visualstudio.com/Download)
 
-To run programs on the Dart VM (optional), either
-[download](https://www.dartlang.org/downloads/) Dart or install it using
-Homebrew as described in the Dart backend for Ceylon
+To run programs on the Dart VM (optional and not currently supported on Microsoft
+Windows), either
+[download](https://www.dartlang.org/downloads/) Dart or install it using Homebrew
+as described in the Dart backend for Ceylon
 [readme](https://github.com/jvasileff/ceylon-dart).
 
 ## Installation
 
-After satisfying the requirements, simply download the preview version of the
-extension
-([vscode-ceylon-0.0.0.vsix](https://jvasileff.github.io/vscode-ceylon/vscode-ceylon-0.0.0.vsix))
+After satisfying the requirements, simply download the preview version of the extension
+([vscode-ceylon-0.0.1.vsix](https://jvasileff.github.io/vscode-ceylon/vscode-ceylon-0.0.1.vsix))
 and open it in Visual Studio Code.
 
 The extension must be able to find the `ceylon` 1.3.0 executable using one of
@@ -119,7 +119,6 @@ using the [Github issue tracker](https://github.com/jvasileff/vscode-ceylon/issu
 
 Known issues and limitations include:
 
-- Microsoft Windows is not currently supported
 - Source directory configuration changes made in `.ceylon/config` and Visual
   Studio Code settings will not take effect until restart
 - Completion and hover are not synchronized with builds, so stale incorrect
@@ -128,6 +127,11 @@ Known issues and limitations include:
   even for unsaved edits.
 
 ## Release Notes
+
+### 0.0.1
+
+- add support for Microsoft Windows
+- avoid hover and completion errors when viewing diffs
 
 ### 0.0.0
 

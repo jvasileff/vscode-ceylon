@@ -11,7 +11,7 @@ import * as Net from 'net';
 import * as ChildProcess from 'child_process';
 import {
     LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, StreamInfo
-} from 'VSCode-languageclient';
+} from 'vscode-languageclient';
 
 PortFinder.basePort = 55747;
 

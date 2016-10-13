@@ -14,7 +14,9 @@ import com.redhat.ceylon.model.typechecker.model {
     Module
 }
 import com.vasileff.ceylon.dart.compiler {
-    compileDartSP
+    compileDartSP,
+    dartBackend,
+    CompilationStatus
 }
 
 import io.typefox.lsapi {
@@ -22,6 +24,16 @@ import io.typefox.lsapi {
 }
 import io.typefox.lsapi.impl {
     DiagnosticImpl
+}
+import com.vasileff.ceylon.vscode.compiler {
+    compileJS
+}
+import com.redhat.ceylon.common {
+    Backend
+}
+import com.redhat.ceylon.compiler.typechecker.tree {
+    Message,
+    TreeNode=Node
 }
 
 "Returns the compiled modules, a list of the compiled documentIds, and all diagnostics."
@@ -32,7 +44,8 @@ shared
         {Module*} moduleCache,
         CeylonConfig ceylonConfig,
         Boolean generateOutput,
-        {String*} moduleNamesToCompile) {
+        {String*} moduleNamesToCompile,
+        Backend backend) {
 
     value listingsToCompile
         =   map(expand(listingsByModuleName.getAll(moduleNamesToCompile).coalesced));
@@ -57,13 +70,31 @@ shared
     log.debug("compile begin: generateOutput=``outputRepositoryManager exists``; \
                modules=``moduleNamesToCompile``");
 
-    value [cuList, status, messages, modules, phasedUnits] = compileDartSP {
-        moduleFilters = moduleNamesToCompile;
-        virtualFiles = sourceVirtualFileFolders;
-        moduleCache = cacheWithoutModulesToCompile;
-        suppressWarning = suppressWarningsFromConfig(ceylonConfig);
-        outputRepositoryManager = outputRepositoryManager;
-    };
+    [Anything, CompilationStatus, [<TreeNode->Message>*],
+    [Module*], [PhasedUnit*]] result;
+
+    if (backend == dartBackend) {
+        result = compileDartSP {
+            moduleFilters = moduleNamesToCompile;
+            virtualFiles = sourceVirtualFileFolders;
+            moduleCache = cacheWithoutModulesToCompile;
+            suppressWarning = suppressWarningsFromConfig(ceylonConfig);
+            outputRepositoryManager = outputRepositoryManager;
+        };
+    }
+    else if (backend == Backend.javaScript) {
+        result = compileJS {
+            moduleFilters = moduleNamesToCompile;
+            virtualFiles = sourceVirtualFileFolders;
+            moduleCache = cacheWithoutModulesToCompile;
+            suppressWarning = suppressWarningsFromConfig(ceylonConfig);
+            outputRepositoryManager = outputRepositoryManager;
+        };
+    }
+    else {
+        throw AssertionError("unsupported backend ``backend``");
+    }
+    value [_, status, messages, modules, phasedUnits] = result;
 
     log.debug("compile end: modules=``moduleNamesToCompile``");
 

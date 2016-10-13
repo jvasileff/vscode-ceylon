@@ -10,6 +10,8 @@ module com.vasileff.ceylon.vscode "0.0.1" {
     shared import com.redhat.ceylon.common "1.3.0";
     shared import com.redhat.ceylon.typechecker "1.3.0";
 
+    import com.redhat.ceylon.compiler.js "1.3.0";
+
     shared import com.vasileff.ceylon.structures "1.0.0";
     shared import com.vasileff.ceylon.dart.compiler "1.3.0-DP3";
 

@@ -47,6 +47,9 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
+import com.redhat.ceylon.common {
+    Backend
+}
 
 shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal Consumer<PublishDiagnosticsParams> publishDiagnostics;
@@ -71,6 +74,9 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
      normalized (i.e. no '..' segments), must not begin with a '.', and must end in
      a '/'."
     shared formal variable [String*] sourceDirectories;
+
+    "The currently configured backend. Must be dart or js."
+    shared formal Backend backend;
 
     "Modules that have been compiled by level-1 that might be dependencies of modules
      currently being compiled by level-2 for the first time. The potential dependency
@@ -155,7 +161,7 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
         //      module.ceylon changes are detected. We need to distinguish between
         //      all modules and modules for the backend (modules for other backends
         //      still serve to rule out files for the default module.)
-        =>  dartCompatibleModules(nonDefaultModulesInSources)
+        =>  backendCompatibleModules(nonDefaultModulesInSources, backend)
                 .map(Module.nameAsString)
                 .follow("default")
                 .sequence();

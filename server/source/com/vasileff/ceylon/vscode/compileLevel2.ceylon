@@ -204,6 +204,8 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
 
     try {
         value [newModules, phasedUnits, compiledDocumentIds, diagnostics]
+            // TODO context.ceylonConfig, sourceDirectories, backend should be obtained
+            //      inside synchronized block
             =   compileModules {
                     moduleNamesToCompile = moduleNamesToCompile;
                     generateOutput = context.generateOutput;
@@ -211,6 +213,7 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
                     moduleCache = moduleCache;
                     listingsByModuleName = listingsByModuleName;
                     sourceDirectories = context.sourceDirectories;
+                    backend = context.backend;
                 };
 
         synchronize(context, () {

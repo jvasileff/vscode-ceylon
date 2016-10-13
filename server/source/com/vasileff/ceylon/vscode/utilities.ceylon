@@ -6,7 +6,6 @@ import com.redhat.ceylon.cmr.ceylon {
     CeylonUtils
 }
 import com.vasileff.ceylon.dart.compiler {
-    dartBackend,
     Warning
 }
 import com.redhat.ceylon.model.typechecker.model {
@@ -39,6 +38,9 @@ import com.redhat.ceylon.common.tool {
 import java.lang {
     Class,
     Enum
+}
+import com.redhat.ceylon.common {
+    Backend
 }
 
 shared
@@ -112,9 +114,9 @@ shared
 }
 
 shared
-[Module*] dartCompatibleModules([Module*] modules)
+[Module*] backendCompatibleModules([Module*] modules, Backend backend)
     =>  modules.select {
-            (m) => m.nativeBackends.none() || m.nativeBackends.supports(dartBackend);
+            (m) => m.nativeBackends.none() || m.nativeBackends.supports(backend);
         };
 
 "Returns a list of modules for all module descriptors found in [[sourceFolders]].

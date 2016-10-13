@@ -241,15 +241,16 @@ Boolean compileLevel1(CeylonLanguageServerContext context) {
 
     try {
         value [newModules, phasedUnits, compiledDocumentIds, diagnostics]
+            // TODO context.ceylonConfig, sourceDirectories, backend should be obtained
+            //      inside synchronized block
             =   compileModules {
                     moduleNamesToCompile = moduleNamesToCompile;
                     generateOutput = context.generateOutput;
-                    // TODO do we need to manage lifecycle of ceylonConfg and use one
-                    //      obtained within context lock?
                     ceylonConfig = context.ceylonConfig;
                     moduleCache = moduleCache;
                     listingsByModuleName = listingsByModuleName;
                     sourceDirectories = context.sourceDirectories;
+                    backend = context.backend;
                 };
 
         // save phasedUnits

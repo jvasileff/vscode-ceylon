@@ -50,6 +50,9 @@ import java.util.\ifunction {
 import com.redhat.ceylon.common {
     Backend
 }
+import com.vasileff.ceylon.dart.compiler {
+    dartBackend
+}
 
 shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal Consumer<PublishDiagnosticsParams> publishDiagnostics;
@@ -76,7 +79,11 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal variable [String*] sourceDirectories;
 
     "The currently configured backend. Must be dart or js."
-    shared formal Backend backend;
+    shared Backend backend
+        =>  switch (backend = ceylonSettings?.getStringOrNull("backend"))
+            case ("dart") dartBackend
+            case ("js") Backend.javaScript
+            else dartBackend;
 
     "Modules that have been compiled by level-1 that might be dependencies of modules
      currently being compiled by level-2 for the first time. The potential dependency

@@ -52,10 +52,18 @@
                     "default": "",
                     "description": "The directory of the Ceylon installation to use."
                 },
+                "ceylon.backend": {
+                    "type": "string",
+                    "default": "dart",
+                    "description": "The compiler backend to use. Currently, the Dart and JavaScript backends are supported. Visual Studio Code must be restarted after changing to this setting.",
+                    "enum": [
+                        "dart", "js"
+                    ]
+                },
                 "ceylon.generateOutput": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Write compiled binaries to the output repository. Note that output is produced regardless of whether or not the source files have been saved."
+                    "description": "Write compiled binaries to the output repository (Dart backend only). Note that output is produced regardless of whether or not the source files have been saved."
                 },
                 "ceylon.serverLogPriority": {
                     "type": "string",

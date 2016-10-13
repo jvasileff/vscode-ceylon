@@ -122,9 +122,6 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
-import com.redhat.ceylon.common {
-    Backend
-}
 
 class CeylonLanguageServer()
         satisfies LanguageServer & MessageTracer & CeylonLanguageServerContext {
@@ -138,8 +135,6 @@ class CeylonLanguageServer()
     shared actual late Directory? rootDirectory;
     shared actual variable JsonObject? settings = null;
     shared actual variable [String*] sourceDirectories = ["source/"];
-//    shared actual variable Backend backend = dartBackend;
-    shared actual variable Backend backend = Backend.javaScript;
 
     value openDocuments
         =   CeylonMutableSet(ConcurrentSkipListSet<String>(

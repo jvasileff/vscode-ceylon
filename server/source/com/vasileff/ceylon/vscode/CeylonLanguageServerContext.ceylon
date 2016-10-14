@@ -83,6 +83,7 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
         =>  switch (backend = ceylonSettings?.getStringOrNull("backend"))
             case ("dart") dartBackend
             case ("js") Backend.javaScript
+            case ("javatest") Backend.java
             else dartBackend;
 
     "Modules that have been compiled by level-1 that might be dependencies of modules

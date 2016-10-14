@@ -26,7 +26,7 @@ import io.typefox.lsapi.impl {
     DiagnosticImpl
 }
 import com.vasileff.ceylon.vscode.compiler {
-    compileJS
+    compileJS, compileJvm
 }
 import com.redhat.ceylon.common {
     Backend
@@ -91,6 +91,16 @@ shared
             outputRepositoryManager = outputRepositoryManager;
         };
     }
+    else if (backend == Backend.java) {
+        result = compileJvm {
+            moduleFilters = moduleNamesToCompile;
+            virtualFiles = sourceVirtualFileFolders;
+            moduleCache = cacheWithoutModulesToCompile;
+            suppressWarning = suppressWarningsFromConfig(ceylonConfig);
+            outputRepositoryManager = outputRepositoryManager;
+        };
+    }
+
     else {
         throw AssertionError("unsupported backend ``backend``");
     }

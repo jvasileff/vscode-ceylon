@@ -59,7 +59,7 @@ the Visual Studio Debug Console in step 2.
 ## Packaging and Installing the Extension
 
 The plugin can be quickly installed by copying the `client` directory to
-`~/.vscode/extensions/`. 
+`~/.vscode/extensions/`, but only *after* compiling the client. Details TODO. 
 
 However, it is preferable to create a lean `.vsix` installable package
 
@@ -85,4 +85,4 @@ The following dependencies must be compiled and available in `~/.ceylon/repo`
 Install branch `topic-1.3.1` with `./gradlew install`.
 * Other? (I think that's it.)
 
-Make sure the extension is configured to use `Ceylon 1.3.0` as described in README.md.
+Make sure the extension is configured to use `Ceylon 1.3.1` as described in README.md.

@@ -164,11 +164,9 @@ compileJS(
         null,
         CompilationStatus.errorTypeChecker,
         messages.collect((m) => m.node->m.message),
-// TODO return modules once moduleCache is supported
-//            CeylonIterable {
-//                typeChecker.phasedUnits.moduleManager.modules.listOfModules;
-//            }.sequence(),
-        [],
+        CeylonIterable {
+            typeChecker.phasedUnits.moduleManager.modules.listOfModules;
+        }.sequence(),
         phasedUnits
     ];
 }

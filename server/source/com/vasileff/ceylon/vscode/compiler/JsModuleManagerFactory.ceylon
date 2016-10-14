@@ -14,7 +14,6 @@ import com.redhat.ceylon.model.typechecker.model {
     Module
 }
 import com.redhat.ceylon.compiler.js.loader {
-    JsModuleManager,
     JsModuleSourceMapper
 }
 
@@ -31,9 +30,8 @@ class JSModuleManagerFactory(
         satisfies ModuleManagerFactory {
 
     shared actual
-    ModuleManager createModuleManager(Context? context)
-        // TODO support module cache
-        =>  JsModuleManager(context, "UTF-8");
+    ModuleManager createModuleManager(Context context)
+        =>  JsModuleManager(context, "UTF-8", moduleCache);
 
     shared actual
     ModuleSourceMapper createModuleManagerUtil

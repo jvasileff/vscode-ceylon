@@ -35,20 +35,32 @@ as described in the Dart backend for Ceylon
 
 ## Installation
 
-After satisfying the requirements, simply download the preview version of the extension
+After satisfying the requirements, download and install the extension:
+
+1. Download the current preview version of the extension
 ([vscode-ceylon-0.0.1.vsix](https://jvasileff.github.io/vscode-ceylon/vscode-ceylon-0.0.1.vsix))
-and open it in Visual Studio Code.
+2. Launch Visual Studio Code
+3. Open the Extensions View by clicking on the last icon on the left hand side of the
+Visual Studio Code interface, or by choosing `View`->`Extensions`
+4. Choose `Install from VSIX...` in the Extensions View command dropdown (to activate the
+dropdown, click on the three horizontal dots in the top right of the Extensions View)
+5. Select the file downloaded in step 1.
 
-The extension must be able to find the `ceylon` 1.3.0 executable using one of
-the following methods:
+The extension must be able to locate the `ceylon` 1.3.0 executable (see Requirements
+above). If not already configured as part of your Ceylon 1.3.0 installation, perform one
+of the following steps:
 
-- Using `ceylon.home` configured within the Visual Studio Code settings (`⌘,`
-  on macOS)
-- Using the `CEYLON_HOME` environment variable
-- Using the system `PATH`
+- Configure the `ceylon.home` in the Visual Studio Code User Settings (`⌘,`
+  on macOS). For example, `"ceylon.home": "/opt/ceylon-1.3.0"`
+- Set the `CEYLON_HOME` environment variable
+- Adjust the system `PATH` to include the directory containing the `ceylon` executable
+
+Note that if the Ceylon installation can be found using more than one of the above
+methods, the first will be used. That is, the order of precedence is the `ceylon.home`
+setting, the `CEYLON_HOME` environment variable, and finally, the system `PATH`.
 
 Additionally, Microsoft Windows users must create a `JAVA_HOME` environment variable
-pointing to the path of the Java installation to use, if one doesn't already exists. The
+pointing to the path of the Java installation to use if one does not already exists. The
 path may be something like `c:\Program Files\Java\jdk1.8.0_102`. To do this, search for
 "advanced system settings", click the "Environment Variables" button, and then click
 "New".

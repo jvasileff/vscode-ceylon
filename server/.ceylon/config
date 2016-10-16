@@ -13,3 +13,4 @@ lookup=../client/lib
 [compiler]
 source=source
 resource=resource
+suppresswarning=inferredNotNull

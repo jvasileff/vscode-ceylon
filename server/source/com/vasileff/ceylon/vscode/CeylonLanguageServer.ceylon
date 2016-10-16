@@ -3,7 +3,8 @@ import ceylon.buffer.charset {
 }
 import ceylon.collection {
     HashSet,
-    HashMap
+    HashMap,
+    MutableSet
 }
 import ceylon.file {
     parsePath,
@@ -147,6 +148,8 @@ class CeylonLanguageServer()
 
     documents = HashMap<String, String>();
     changedDocumentIds = HashSet<String>();
+    documentIdsWithDiagnostics = HashSet<String>();
+
     phasedUnits = HashMap<String, [PhasedUnit*]>();
     compiledDocumentIdFutures = ArrayListMultimap
             <String, CompletableFuture<[PhasedUnit=]>>();

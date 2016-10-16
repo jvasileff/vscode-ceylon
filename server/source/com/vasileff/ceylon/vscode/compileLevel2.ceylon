@@ -135,10 +135,13 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
             for (documentId in expand(listingsByModuleName
                         .getAll(removedModuleNames).coalesced)
                         .map(Entry.key)) {
-                value p = PublishDiagnosticsParamsImpl();
-                p.uri = context.toUri(documentId);
-                p.diagnostics = JavaList<DiagnosticImpl>([]);
-                context.publishDiagnostics.accept(p);
+                if (documentId in context.documentIdsWithDiagnostics) {
+                    value p = PublishDiagnosticsParamsImpl();
+                    p.uri = context.toUri(documentId);
+                    p.diagnostics = JavaList<DiagnosticImpl>([]);
+                    context.publishDiagnostics.accept(p);
+                    context.documentIdsWithDiagnostics.remove(documentId);
+                }
             }
 
             // clear removed modules from the cache
@@ -318,19 +321,22 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
         });
 
         // Publish Diagnostics
-
-        // FIXME We have to send diags for *all* files, since we need to clear
-        // errors!!! Instead, we need to keep a list of files w/errors, to limit
-        // the work here.
-
         // FIXME do this in the sync block?
         value diagnosticsMap = ArrayListMultimap { *diagnostics };
         for (documentId in compiledDocumentIds) {
             value forDocument = diagnosticsMap[documentId] else [];
-            value p = PublishDiagnosticsParamsImpl();
-            p.uri = context.toUri(documentId);
-            p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
-            context.publishDiagnostics.accept(p);
+            if (!forDocument.empty || documentId in context.documentIdsWithDiagnostics) {
+                value p = PublishDiagnosticsParamsImpl();
+                p.uri = context.toUri(documentId);
+                p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
+                context.publishDiagnostics.accept(p);
+                if (forDocument.empty) {
+                    context.documentIdsWithDiagnostics.remove(documentId);
+                }
+                else {
+                    context.documentIdsWithDiagnostics.add(documentId);
+                }
+            }
         }
     }
     catch (Throwable e) {

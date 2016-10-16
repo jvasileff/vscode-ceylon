@@ -73,6 +73,7 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
 
     shared formal MutableMap<String, String> documents;
     shared formal MutableSet<String> changedDocumentIds;
+    shared formal MutableSet<String> documentIdsWithDiagnostics;
 
     shared formal MutableMultimap<String, CompletableFuture<[PhasedUnit=]>>
             compiledDocumentIdFutures;

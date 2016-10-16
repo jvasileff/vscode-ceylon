@@ -9,7 +9,8 @@ import ceylon.file {
     parseURI
 }
 import ceylon.interop.java {
-    createJavaStringArray
+    createJavaStringArray,
+    synchronize
 }
 
 import com.redhat.ceylon.common.config {
@@ -39,7 +40,9 @@ import java.io {
     JFile=File
 }
 import java.util.concurrent {
-    CompletableFuture
+    CompletableFuture,
+    Future,
+    CompletionStage
 }
 import java.util.concurrent.atomic {
     AtomicBoolean
@@ -52,6 +55,10 @@ import com.redhat.ceylon.common {
 }
 import com.vasileff.ceylon.dart.compiler {
     dartBackend
+}
+import com.vasileff.ceylon.structures {
+    Multimap,
+    MutableMultimap
 }
 
 shared interface CeylonLanguageServerContext satisfies MessageTracer {
@@ -70,6 +77,9 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal MutableMap<String, String> documents;
     shared formal MutableSet<String> changedDocumentIds;
 
+    shared formal MutableMultimap<String, CompletableFuture<[PhasedUnit*]>>
+            compiledDocumentIdFutures;
+
     "A map from module name to PhasedUnits."
     shared formal MutableMap<String, [PhasedUnit*]> phasedUnits;
 
@@ -84,6 +94,9 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
             case ("dart") dartBackend
             case ("js") Backend.javaScript
             else dartBackend;
+
+    shared formal variable Set<String> level1CompilingChangedDocumentIds;
+    shared formal variable Set<String> level2CompilingChangedDocumentIds;
 
     "Modules that have been compiled by level-1 that might be dependencies of modules
      currently being compiled by level-2 for the first time. The potential dependency
@@ -277,5 +290,62 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
                 }
             }
         });
+    }
+
+    shared
+    CompletableFuture<[PhasedUnit*]> unitsForDocumentId(String? documentId) {
+        if (!exists documentId) {
+            return CompletableFuture.completedFuture<[PhasedUnit*]>([]);
+        }
+        value future = CompletableFuture<[PhasedUnit*]>();
+        synchronize(this, () {
+            if (!isSourceFile(documentId)) {
+                // if the documentId is not a sourceFile, complete the future now with []
+                future.complete([]);
+            }
+            else if (!documentId in changedDocumentIds,
+                !documentId in level1CompilingChangedDocumentIds,
+                !documentId in level2CompilingChangedDocumentIds,
+                exists moduleName
+                    =   moduleNameForDocumentId(
+                                allModuleNames, sourceDirectories, documentId),
+                nonempty units
+                    =   phasedUnits[moduleName]) {
+
+                // if the documentId has not changed and is in a module that has been
+                // compiled, complete the future with the phased units we have now
+                future.complete(units);
+            }
+            else {
+                // otherwise, schedule the future to be complete once the documentId has
+                // been compiled
+                compiledDocumentIdFutures.put(documentId, future);
+            }
+        });
+        return future;
+    }
+
+    "Must be called from within a synchronized block on this context."
+    shared
+    void completeFuturesFor({String*} documentIds) {
+        for (documentId in documentIds) {
+            for (future in compiledDocumentIdFutures.removeAll(documentId)) {
+                completeFuture(documentId->future);
+            }
+        }
+    }
+
+    shared
+    void completeFuture(
+            String->CompletableFuture<[PhasedUnit*]> documentIdAndFuture) {
+        value documentId->future = documentIdAndFuture;
+        if (exists moduleName
+                =   moduleNameForDocumentId(
+                        allModuleNames, sourceDirectories, documentId)) {
+            future.complete(phasedUnits[moduleName] else []);
+        }
+        else {
+            future.complete([]);
+        }
     }
 }

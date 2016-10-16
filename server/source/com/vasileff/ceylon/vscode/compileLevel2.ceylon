@@ -36,8 +36,8 @@ void launchLevel2Compiler(CeylonLanguageServerContext context) {
 
 Boolean compileLevel2(CeylonLanguageServerContext context) {
 
-    value [moduleNamesToCompile, moduleCache, listingsByModuleName,
-            changedDocumentIdsToClear] = synchronize(context, () {
+    value [moduleNamesToCompile, moduleCache, listingsByModuleName, futuresToComplete]
+            =   synchronize(context, () {
 
         value currentModuleNamesForBackend
             =   context.allModuleNamesForBackend;
@@ -45,8 +45,13 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
         value listingsByModuleName
             =   context.listingsByModuleName;
 
-        "we're starting a new level-2 compile; one shouldn't already be running"
+        "starting a new level-2 compile; level2RefreshingModuleNames should
+         be empty"
         assert (context.level2RefreshingModuleNames.empty);
+
+        "starting a new level-2 compile; level2CompilingChangedDocumentIds should
+         be empty"
+        assert (context.level2CompilingChangedDocumentIds.empty);
 
         // Clear any new level2Roots. These are only used to immediately invalidate
         // modules that level-2 has compiled for the first time (with dependencies not
@@ -176,6 +181,7 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
                     else false);
 
         context.changedDocumentIds.removeAll(changedDocumentIdsToClear);
+        context.level2CompilingChangedDocumentIds = set(changedDocumentIdsToClear);
 
         log.debug(()=>"c2-changedDocumentIdsToClear: ``changedDocumentIdsToClear``");
         log.debug(()=>"c2-moduleCache context: \
@@ -193,7 +199,9 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
             moduleNamesToCompile,
             moduleCache,
             listingsByModuleName,
-            changedDocumentIdsToClear
+            changedDocumentIdsToClear.flatMap((documentId)
+                =>  context.compiledDocumentIdFutures.removeAll(documentId)
+                        .map((future) => documentId->future)).sequence()
         ];
     });
 
@@ -299,6 +307,14 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
 
             context.level2QueuedRoots.clear();
             context.level2RefreshingModuleNames.clear();
+
+            // see notes for similar in compileLevel1
+            context.level2CompilingChangedDocumentIds = emptySet;
+            futuresToComplete.each(context.completeFuture);
+            context.completeFuturesFor {
+                compiledDocumentIds.select((documentId)
+                    => !documentId in context.changedDocumentIds);
+            };
         });
 
         // Publish Diagnostics
@@ -320,7 +336,8 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
     catch (Throwable e) {
         // add back the documentIds and module names
         synchronize(context, () {
-            context.changedDocumentIds.addAll(changedDocumentIdsToClear);
+            context.changedDocumentIds.addAll(context.level2CompilingChangedDocumentIds);
+            context.level2CompilingChangedDocumentIds = emptySet;
             context.level2QueuedModuleNames.addAll(context.level2RefreshingModuleNames);
             context.level2RefreshingModuleNames.clear();
         });

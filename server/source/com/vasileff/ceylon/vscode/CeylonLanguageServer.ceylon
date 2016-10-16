@@ -3,7 +3,8 @@ import ceylon.buffer.charset {
 }
 import ceylon.collection {
     HashSet,
-    HashMap
+    HashMap,
+    MutableSet
 }
 import ceylon.file {
     parsePath,
@@ -107,7 +108,8 @@ import java.io {
     JFile=File
 }
 import java.lang {
-    JBoolean=Boolean
+    JBoolean=Boolean,
+    Thread
 }
 import java.util {
     List
@@ -120,7 +122,15 @@ import java.util.concurrent.atomic {
     AtomicBoolean
 }
 import java.util.\ifunction {
-    Consumer
+    Consumer,
+    BiFunction,
+    Supplier,
+    Function
+}
+import com.vasileff.ceylon.structures {
+    Multimap,
+    ListMultimap,
+    ArrayListMultimap
 }
 
 class CeylonLanguageServer()
@@ -146,6 +156,11 @@ class CeylonLanguageServer()
     documents = HashMap<String, String>();
     changedDocumentIds = HashSet<String>();
     phasedUnits = HashMap<String, [PhasedUnit*]>();
+    compiledDocumentIdFutures = ArrayListMultimap
+            <String, CompletableFuture<[PhasedUnit*]>>();
+
+    shared actual variable Set<String> level1CompilingChangedDocumentIds = emptySet;
+    shared actual variable Set<String> level2CompilingChangedDocumentIds = emptySet;
 
     level2QueuedRoots = HashSet<Module>();
     level2QueuedModuleNames = HashSet<String>();
@@ -257,34 +272,27 @@ class CeylonLanguageServer()
 
         shared actual
         CompletableFuture<CompletionList> completion(TextDocumentPositionParams that) {
-            // TODO synchronize with compiles
-
             value documentId = toDocumentIdString(that.textDocument.uri);
 
-            if (!isSourceFile(documentId)) {
-                // Always send an empty completion list for non-source files
-                value result = CompletionListImpl();
-                result.items = JavaList<CompletionItemImpl>([]);
-                return CompletableFuture.completedFuture<CompletionList>(result);
+            if (!exists documentId) {
+                return CompletableFuture.completedFuture(CompletionListBuilder().build());
             }
-            assert (exists documentId);
 
-            if (exists moduleName
-                        =   moduleNameForDocumentId(
-                                    allModuleNames, sourceDirectories, documentId),
-                    nonempty units
-                        =   phasedUnits[moduleName]) {
-
-                value completer
-                    =   Autocompleter {
-                            documentId;
-                            that.position.line + 1;
-                            that.position.character;
-                            units;
-                };
-
-                if (!completer.completions.empty) {
+            return
+            unitsForDocumentId(documentId).thenApplyAsync<CompletionList>(object
+                    satisfies Function<[PhasedUnit*], CompletionList> {
+                shared actual CompletionList apply([PhasedUnit*] units) {
                     value builder = CompletionListBuilder();
+                    if (!nonempty units) {
+                        return builder.build();
+                    }
+                    value completer
+                        =   Autocompleter {
+                                documentId;
+                                that.position.line + 1;
+                                that.position.character;
+                                units;
+                    };
                     for (completion in completer.completions) {
                         builder.item(CompletionItemBuilder()
                             .insertText(renderCompletionInsertText(completion))
@@ -295,15 +303,12 @@ class CeylonLanguageServer()
                             //.kind(CompletionItemKind.method)
                             .build());
                     }
-                    return CompletableFuture.completedFuture<CompletionList>(
-                            builder.build());
+                    if (completer.completions.empty) {
+                        builder.incomplete(true);
+                    }
+                    return builder.build();
                 }
-            }
-
-            // nothing found, but mark incomplete since it may be because we haven't
-            // finished a compile
-            return CompletableFuture.completedFuture<CompletionList>(
-                CompletionListBuilder().incomplete(true).build());
+            });
         }
 
         shared actual

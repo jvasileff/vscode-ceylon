@@ -10,7 +10,8 @@ import ceylon.file {
 }
 import ceylon.interop.java {
     createJavaStringArray,
-    synchronize
+    synchronize,
+    JavaList
 }
 
 import com.redhat.ceylon.common {
@@ -29,7 +30,8 @@ import com.vasileff.ceylon.dart.compiler {
     dartBackend
 }
 import com.vasileff.ceylon.structures {
-    MutableMultimap
+    MutableMultimap,
+    Multimap
 }
 
 import io.typefox.lsapi {
@@ -39,7 +41,9 @@ import io.typefox.lsapi {
     MessageType
 }
 import io.typefox.lsapi.impl {
-    MessageParamsImpl
+    MessageParamsImpl,
+    DiagnosticImpl,
+    PublishDiagnosticsParamsImpl
 }
 import io.typefox.lsapi.services.transport.trace {
     MessageTracer
@@ -345,5 +349,23 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
             String->CompletableFuture<[PhasedUnit=]> documentIdAndFuture) {
         value documentId->future = documentIdAndFuture;
         future.complete(emptyOrSingleton(findUnitForDocumentId(documentId)));
+    }
+
+    shared
+    void synchronizeDiagnostics([<String -> List<DiagnosticImpl>>*] documentIdDiagnostics) {
+        for (documentId->forDocument in documentIdDiagnostics) {
+            if (!forDocument.empty || documentId in documentIdsWithDiagnostics) {
+                value p = PublishDiagnosticsParamsImpl();
+                p.uri = toUri(documentId);
+                p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
+                publishDiagnostics.accept(p);
+                if (forDocument.empty) {
+                    documentIdsWithDiagnostics.remove(documentId);
+                }
+                else {
+                    documentIdsWithDiagnostics.add(documentId);
+                }
+            }
+        }
     }
 }

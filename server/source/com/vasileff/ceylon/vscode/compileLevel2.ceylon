@@ -311,7 +311,14 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
             context.level2QueuedRoots.clear();
             context.level2RefreshingModuleNames.clear();
 
-            // see notes for similar in compileLevel1
+            // update diagnostics
+            value diagnosticsMap = ArrayListMultimap { *diagnostics };
+            context.synchronizeDiagnostics {
+                compiledDocumentIds.collect((documentId)
+                    =>  documentId -> diagnosticsMap.get(documentId));
+            };
+
+            // completions, hover, etc. See notes for similar in compileLevel1
             context.level2CompilingChangedDocumentIds = emptySet;
             futuresToComplete.each(context.completeFuture);
             context.completeFuturesFor {
@@ -319,25 +326,6 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
                     => !documentId in context.changedDocumentIds);
             };
         });
-
-        // Publish Diagnostics
-        // FIXME do this in the sync block?
-        value diagnosticsMap = ArrayListMultimap { *diagnostics };
-        for (documentId in compiledDocumentIds) {
-            value forDocument = diagnosticsMap[documentId] else [];
-            if (!forDocument.empty || documentId in context.documentIdsWithDiagnostics) {
-                value p = PublishDiagnosticsParamsImpl();
-                p.uri = context.toUri(documentId);
-                p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
-                context.publishDiagnostics.accept(p);
-                if (forDocument.empty) {
-                    context.documentIdsWithDiagnostics.remove(documentId);
-                }
-                else {
-                    context.documentIdsWithDiagnostics.add(documentId);
-                }
-            }
-        }
     }
     catch (Throwable e) {
         // add back the documentIds and module names

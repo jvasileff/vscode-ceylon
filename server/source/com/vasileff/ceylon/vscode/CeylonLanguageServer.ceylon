@@ -3,8 +3,7 @@ import ceylon.buffer.charset {
 }
 import ceylon.collection {
     HashSet,
-    HashMap,
-    MutableSet
+    HashMap
 }
 import ceylon.file {
     parsePath,

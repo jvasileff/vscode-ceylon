@@ -30,8 +30,7 @@ import com.vasileff.ceylon.dart.compiler {
     dartBackend
 }
 import com.vasileff.ceylon.structures {
-    MutableMultimap,
-    Multimap
+    MutableMultimap
 }
 
 import io.typefox.lsapi {

@@ -73,7 +73,10 @@ This extension contributes the following settings:
 * `ceylon.generateOutput`: Write compiled binaries to the output repository.
   Note that output is produced regardless of whether or not the source files
   have been saved.
-* `ceylon.serverLogPriority`: The logging level for the language server.
+* `ceylon.serverLogPriority`: The logging level for the language server. For
+  levels other than 'disabled', a log file will be created for each instance of
+  the extension. Log files will be created in the '/tmp' directory if it exists,
+  or the system default temporary directory otherwise.
 * `ceylon.config.compiler.suppresswarning`: Override the suppresswarning
   setting.
 * `ceylon.config.compiler.dartsuppresswarning`: Override the
@@ -126,17 +129,31 @@ A sample `tasks.json` to get you started:
 
 ## Known Issues
 
-This is pre-release software. Please report problems with steps to reproduce
-using the [Github issue tracker](https://github.com/jvasileff/vscode-ceylon/issues).
-
-Known issues and limitations include:
+This is pre-release software. Please be aware of the following known limitations:
 
 - Source directory configuration changes made in `.ceylon/config` and Visual
   Studio Code settings will not take effect until restart
-- Completion and hover are not synchronized with builds, so stale incorrect
-  information may be provided
 - When `ceylon.generateOutput` is enabled, binaries are continuously produced,
   even for unsaved edits.
+- Changes to `ceylon.backend` (not available yet, coming soon) may leave the compiler
+  in an inconsistent state. Restarting Visual Studio Code is recommended.
+
+## Reporting Bugs
+
+Please submit feature requests and bug reports using the
+[Github issue tracker](https://github.com/jvasileff/vscode-ceylon/issues).
+
+For bugs, if possible, please include:
+
+- Steps to reproduce
+- Portions of code being edited that triggered the bug, if relevant
+- Stack traces and other errors or messages that appear in the user interface or the
+  language server log. To enable logging, use the `ceylon.serverLogPriority`
+  extension setting, which is described in the "Extension Settings" section above.
+
+Please note that while error messages do appear as alerts in the user interface,
+diagnostic information is truncated, and proper troubleshooting may require complete
+information that is only available in the language server log.
 
 ## Release Notes
 

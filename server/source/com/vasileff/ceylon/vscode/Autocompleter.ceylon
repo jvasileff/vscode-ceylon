@@ -34,23 +34,17 @@ class CompletionDeclarationInfo(
         shared DeclarationInfo declarationInfo,
         shared Boolean withArguments) {}
 
-class Autocompleter(String documentId,
-        Integer row, Integer col,
-        {PhasedUnit*} phasedUnits) {
+class Autocompleter(String documentId, Integer row, Integer col, PhasedUnit phasedUnit) {
 
     value noCompletions = emptyMap<JString,DeclarationWithProximity>();
 
     shared [Node,String]? selectedNode {
-        for (pu in phasedUnits) {
-            if (documentId == pu.unitFile.path) {
-                value fiv = FindIdentifierVisitor(row,col);
-                pu.compilationUnit.visit(fiv);
-                if (exists [node, text] = fiv.result) {
-                    value fpv = FindParentVisitor(node);
-                    pu.compilationUnit.visit(fpv);
-                    return [fpv.node, text];
-                }
-            }
+        value fiv = FindIdentifierVisitor(row,col);
+        phasedUnit.compilationUnit.visit(fiv);
+        if (exists [node, text] = fiv.result) {
+            value fpv = FindParentVisitor(node);
+            phasedUnit.compilationUnit.visit(fpv);
+            return [fpv.node, text];
         }
         return null;
     }
@@ -314,14 +308,13 @@ class FindParentVisitor(shared variable Node node) extends Visitor() {
 }
 
 Declaration? findDeclaration(
-        String documentId, Integer row, Integer col,
-        [PhasedUnit*] phasedUnits) {
+        String documentId, Integer row, Integer col, PhasedUnit phasedUnit) {
     if (exists [node, _] =
             Autocompleter {
                 documentId = documentId;
                 row = row;
                 col = col;
-                phasedUnits = phasedUnits;
+                phasedUnit = phasedUnit;
             }.selectedNode) {
         switch (node)
         case (is Tree.StaticMemberOrTypeExpression) {

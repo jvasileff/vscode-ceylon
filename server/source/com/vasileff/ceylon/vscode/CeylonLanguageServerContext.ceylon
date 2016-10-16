@@ -13,6 +13,9 @@ import ceylon.interop.java {
     synchronize
 }
 
+import com.redhat.ceylon.common {
+    Backend
+}
 import com.redhat.ceylon.common.config {
     CeylonConfig
 }
@@ -21,6 +24,12 @@ import com.redhat.ceylon.compiler.typechecker.context {
 }
 import com.redhat.ceylon.model.typechecker.model {
     Module
+}
+import com.vasileff.ceylon.dart.compiler {
+    dartBackend
+}
+import com.vasileff.ceylon.structures {
+    MutableMultimap
 }
 
 import io.typefox.lsapi {
@@ -40,25 +49,13 @@ import java.io {
     JFile=File
 }
 import java.util.concurrent {
-    CompletableFuture,
-    Future,
-    CompletionStage
+    CompletableFuture
 }
 import java.util.concurrent.atomic {
     AtomicBoolean
 }
 import java.util.\ifunction {
     Consumer
-}
-import com.redhat.ceylon.common {
-    Backend
-}
-import com.vasileff.ceylon.dart.compiler {
-    dartBackend
-}
-import com.vasileff.ceylon.structures {
-    Multimap,
-    MutableMultimap
 }
 
 shared interface CeylonLanguageServerContext satisfies MessageTracer {
@@ -77,7 +74,7 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal MutableMap<String, String> documents;
     shared formal MutableSet<String> changedDocumentIds;
 
-    shared formal MutableMultimap<String, CompletableFuture<[PhasedUnit*]>>
+    shared formal MutableMultimap<String, CompletableFuture<[PhasedUnit=]>>
             compiledDocumentIdFutures;
 
     "A map from module name to PhasedUnits."
@@ -293,11 +290,11 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
     }
 
     shared
-    CompletableFuture<[PhasedUnit*]> unitsForDocumentId(String? documentId) {
+    CompletableFuture<[PhasedUnit=]> unitForDocumentId(String? documentId) {
         if (!exists documentId) {
-            return CompletableFuture.completedFuture<[PhasedUnit*]>([]);
+            return CompletableFuture.completedFuture<[PhasedUnit=]>([]);
         }
-        value future = CompletableFuture<[PhasedUnit*]>();
+        value future = CompletableFuture<[PhasedUnit=]>();
         synchronize(this, () {
             if (!isSourceFile(documentId)) {
                 // if the documentId is not a sourceFile, complete the future now with []
@@ -309,12 +306,11 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
                 exists moduleName
                     =   moduleNameForDocumentId(
                                 allModuleNames, sourceDirectories, documentId),
-                nonempty units
-                    =   phasedUnits[moduleName]) {
+                phasedUnits[moduleName] nonempty) {
 
                 // if the documentId has not changed and is in a module that has been
                 // compiled, complete the future with the phased units we have now
-                future.complete(units);
+                future.complete(emptyOrSingleton(findUnitForDocumentId(documentId)));
             }
             else {
                 // otherwise, schedule the future to be complete once the documentId has
@@ -336,16 +332,17 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
     }
 
     shared
+    PhasedUnit? findUnitForDocumentId(String documentId)
+        =>  if (exists moduleName = moduleNameForDocumentId(
+                    allModuleNames, sourceDirectories, documentId))
+            then (phasedUnits[moduleName] else []).find((pu)
+                    =>  pu.unitFile.path == documentId)
+            else null;
+
+    shared
     void completeFuture(
-            String->CompletableFuture<[PhasedUnit*]> documentIdAndFuture) {
+            String->CompletableFuture<[PhasedUnit=]> documentIdAndFuture) {
         value documentId->future = documentIdAndFuture;
-        if (exists moduleName
-                =   moduleNameForDocumentId(
-                        allModuleNames, sourceDirectories, documentId)) {
-            future.complete(phasedUnits[moduleName] else []);
-        }
-        else {
-            future.complete([]);
-        }
+        future.complete(emptyOrSingleton(findUnitForDocumentId(documentId)));
     }
 }

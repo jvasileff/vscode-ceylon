@@ -3,8 +3,7 @@ import ceylon.buffer.charset {
 }
 import ceylon.collection {
     HashSet,
-    HashMap,
-    MutableSet
+    HashMap
 }
 import ceylon.file {
     parsePath,
@@ -38,6 +37,9 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 import com.vasileff.ceylon.dart.compiler {
     ReportableException
+}
+import com.vasileff.ceylon.structures {
+    ArrayListMultimap
 }
 
 import io.typefox.lsapi {
@@ -89,8 +91,6 @@ import io.typefox.lsapi.impl {
     PublishDiagnosticsParamsImpl,
     CompletionOptionsImpl,
     DiagnosticImpl,
-    CompletionListImpl,
-    CompletionItemImpl,
     MarkedStringImpl,
     HoverImpl
 }
@@ -108,8 +108,7 @@ import java.io {
     JFile=File
 }
 import java.lang {
-    JBoolean=Boolean,
-    Thread
+    JBoolean=Boolean
 }
 import java.util {
     List
@@ -123,14 +122,7 @@ import java.util.concurrent.atomic {
 }
 import java.util.\ifunction {
     Consumer,
-    BiFunction,
-    Supplier,
     Function
-}
-import com.vasileff.ceylon.structures {
-    Multimap,
-    ListMultimap,
-    ArrayListMultimap
 }
 
 class CeylonLanguageServer()
@@ -157,7 +149,7 @@ class CeylonLanguageServer()
     changedDocumentIds = HashSet<String>();
     phasedUnits = HashMap<String, [PhasedUnit*]>();
     compiledDocumentIdFutures = ArrayListMultimap
-            <String, CompletableFuture<[PhasedUnit*]>>();
+            <String, CompletableFuture<[PhasedUnit=]>>();
 
     shared actual variable Set<String> level1CompilingChangedDocumentIds = emptySet;
     shared actual variable Set<String> level2CompilingChangedDocumentIds = emptySet;
@@ -279,11 +271,11 @@ class CeylonLanguageServer()
             }
 
             return
-            unitsForDocumentId(documentId).thenApplyAsync<CompletionList>(object
-                    satisfies Function<[PhasedUnit*], CompletionList> {
-                shared actual CompletionList apply([PhasedUnit*] units) {
+            unitForDocumentId(documentId).thenApplyAsync<CompletionList>(object
+                    satisfies Function<[PhasedUnit=], CompletionList> {
+                shared actual CompletionList apply([PhasedUnit=] unit) {
                     value builder = CompletionListBuilder();
-                    if (!nonempty units) {
+                    if (!nonempty unit) {
                         return builder.build();
                     }
                     value completer
@@ -291,7 +283,7 @@ class CeylonLanguageServer()
                                 documentId;
                                 that.position.line + 1;
                                 that.position.character;
-                                units;
+                                unit.first;
                     };
                     for (completion in completer.completions) {
                         builder.item(CompletionItemBuilder()
@@ -452,19 +444,14 @@ class CeylonLanguageServer()
             }
             assert (exists documentId);
 
-            if (exists moduleName
-                        =   moduleNameForDocumentId(
-                                allModuleNames, sourceDirectories, documentId),
-
-                    nonempty units
-                        =   phasedUnits[moduleName],
-
-                    exists declaration
+            if (exists unit
+                        =   findUnitForDocumentId(documentId),
+                exists declaration
                         =   findDeclaration {
                                 documentId = documentId;
                                 row = that.position.line + 1;
                                 col = that.position.character;
-                                phasedUnits = units;
+                                phasedUnit = unit;
                             }) {
 
                 value docs = getDeclarationInfo(declaration).string;

@@ -1,5 +1,4 @@
 import ceylon.interop.java {
-    JavaList,
     synchronize
 }
 
@@ -11,11 +10,6 @@ import com.vasileff.ceylon.dart.compiler {
 }
 import com.vasileff.ceylon.structures {
     ArrayListMultimap
-}
-
-import io.typefox.lsapi.impl {
-    DiagnosticImpl,
-    PublishDiagnosticsParamsImpl
 }
 
 shared
@@ -36,8 +30,12 @@ void launchLevel1Compiler(CeylonLanguageServerContext context) {
 
 Boolean compileLevel1(CeylonLanguageServerContext context) {
 
-    value [moduleNamesToCompile, moduleCache, listingsByModuleName,
-            changedDocumentIdsToClear] = synchronize(context, () {
+    value [moduleNamesToCompile, moduleCache, listingsByModuleName, futuresToComplete]
+            =   synchronize(context, () {
+
+        "starting a new level-1 compile; level1CompilingChangedDocumentIds should
+         be empty"
+        assert (context.level1CompilingChangedDocumentIds.empty);
 
         value currentModuleNamesForBackend
             =   context.allModuleNamesForBackend;
@@ -225,12 +223,15 @@ Boolean compileLevel1(CeylonLanguageServerContext context) {
                        ``sort(moduleCache.collect(Module.signature))``");
 
         context.changedDocumentIds.removeAll(changedDocumentIdsToClear);
+        context.level1CompilingChangedDocumentIds = set(changedDocumentIdsToClear);
 
         return [
             moduleNamesToCompile,
             moduleCache,
             listingsByModuleName,
-            changedDocumentIdsToClear
+            changedDocumentIdsToClear.flatMap((documentId)
+                =>  context.compiledDocumentIdFutures.removeAll(documentId)
+                        .map((future) => documentId->future)).sequence()
         ];
     });
 
@@ -321,28 +322,38 @@ Boolean compileLevel1(CeylonLanguageServerContext context) {
 
             log.debug(()=>"c1-level2QueuedModuleNames after adding: \
                            ``context.level2QueuedModuleNames``");
+
+            context.level1CompilingChangedDocumentIds = emptySet;
+
+            // update diagnostics
+            value diagnosticsMap = ArrayListMultimap { *diagnostics };
+            context.synchronizeDiagnostics {
+                compiledDocumentIds.collect((documentId)
+                    =>  documentId -> diagnosticsMap.get(documentId));
+            };
+
+            // Process any completions, hovers, etc. waiting on the compile. This includes
+            //
+            //  - futures that existed at before the compiler started for documentIds that
+            //    had changes at that time, and
+            //
+            //  - futures that were created during the compile for compiled documentIds
+            //    that do not currently have changes (documents with new changes must be
+            //    re-compiled before completing the future.)
+            futuresToComplete.each(context.completeFuture);
+            context.completeFuturesFor {
+                compiledDocumentIds.select((documentId)
+                    => !documentId in context.changedDocumentIds);
+            };
         });
 
         launchLevel2Compiler(context);
-
-        // Publish Diagnostics
-
-        // FIXME We have to send diags for *all* files, since we need to clear
-        // errors!!! Instead, we need to keep a list of files w/errors, to limit
-        // the work here.
-        value diagnosticsMap = ArrayListMultimap { *diagnostics };
-        for (documentId in compiledDocumentIds) {
-            value forDocument = diagnosticsMap[documentId] else [];
-            value p = PublishDiagnosticsParamsImpl();
-            p.uri = context.toUri(documentId);
-            p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
-            context.publishDiagnostics.accept(p);
-        }
     }
     catch (Throwable e) {
         // add back the documentIds
         synchronize(context, () {
-            context.changedDocumentIds.addAll(changedDocumentIdsToClear);
+            context.changedDocumentIds.addAll(context.level1CompilingChangedDocumentIds);
+            context.level1CompilingChangedDocumentIds = emptySet;
         });
 
         log.error("failed compile");

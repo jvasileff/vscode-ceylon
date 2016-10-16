@@ -36,8 +36,8 @@ void launchLevel2Compiler(CeylonLanguageServerContext context) {
 
 Boolean compileLevel2(CeylonLanguageServerContext context) {
 
-    value [moduleNamesToCompile, moduleCache, listingsByModuleName,
-            changedDocumentIdsToClear] = synchronize(context, () {
+    value [moduleNamesToCompile, moduleCache, listingsByModuleName, futuresToComplete]
+            =   synchronize(context, () {
 
         value currentModuleNamesForBackend
             =   context.allModuleNamesForBackend;
@@ -45,8 +45,13 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
         value listingsByModuleName
             =   context.listingsByModuleName;
 
-        "we're starting a new level-2 compile; one shouldn't already be running"
+        "starting a new level-2 compile; level2RefreshingModuleNames should
+         be empty"
         assert (context.level2RefreshingModuleNames.empty);
+
+        "starting a new level-2 compile; level2CompilingChangedDocumentIds should
+         be empty"
+        assert (context.level2CompilingChangedDocumentIds.empty);
 
         // Clear any new level2Roots. These are only used to immediately invalidate
         // modules that level-2 has compiled for the first time (with dependencies not
@@ -130,10 +135,13 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
             for (documentId in expand(listingsByModuleName
                         .getAll(removedModuleNames).coalesced)
                         .map(Entry.key)) {
-                value p = PublishDiagnosticsParamsImpl();
-                p.uri = context.toUri(documentId);
-                p.diagnostics = JavaList<DiagnosticImpl>([]);
-                context.publishDiagnostics.accept(p);
+                if (documentId in context.documentIdsWithDiagnostics) {
+                    value p = PublishDiagnosticsParamsImpl();
+                    p.uri = context.toUri(documentId);
+                    p.diagnostics = JavaList<DiagnosticImpl>([]);
+                    context.publishDiagnostics.accept(p);
+                    context.documentIdsWithDiagnostics.remove(documentId);
+                }
             }
 
             // clear removed modules from the cache
@@ -176,6 +184,7 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
                     else false);
 
         context.changedDocumentIds.removeAll(changedDocumentIdsToClear);
+        context.level2CompilingChangedDocumentIds = set(changedDocumentIdsToClear);
 
         log.debug(()=>"c2-changedDocumentIdsToClear: ``changedDocumentIdsToClear``");
         log.debug(()=>"c2-moduleCache context: \
@@ -193,7 +202,9 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
             moduleNamesToCompile,
             moduleCache,
             listingsByModuleName,
-            changedDocumentIdsToClear
+            changedDocumentIdsToClear.flatMap((documentId)
+                =>  context.compiledDocumentIdFutures.removeAll(documentId)
+                        .map((future) => documentId->future)).sequence()
         ];
     });
 
@@ -299,28 +310,28 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
 
             context.level2QueuedRoots.clear();
             context.level2RefreshingModuleNames.clear();
+
+            // update diagnostics
+            value diagnosticsMap = ArrayListMultimap { *diagnostics };
+            context.synchronizeDiagnostics {
+                compiledDocumentIds.collect((documentId)
+                    =>  documentId -> diagnosticsMap.get(documentId));
+            };
+
+            // completions, hover, etc. See notes for similar in compileLevel1
+            context.level2CompilingChangedDocumentIds = emptySet;
+            futuresToComplete.each(context.completeFuture);
+            context.completeFuturesFor {
+                compiledDocumentIds.select((documentId)
+                    => !documentId in context.changedDocumentIds);
+            };
         });
-
-        // Publish Diagnostics
-
-        // FIXME We have to send diags for *all* files, since we need to clear
-        // errors!!! Instead, we need to keep a list of files w/errors, to limit
-        // the work here.
-
-        // FIXME do this in the sync block?
-        value diagnosticsMap = ArrayListMultimap { *diagnostics };
-        for (documentId in compiledDocumentIds) {
-            value forDocument = diagnosticsMap[documentId] else [];
-            value p = PublishDiagnosticsParamsImpl();
-            p.uri = context.toUri(documentId);
-            p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
-            context.publishDiagnostics.accept(p);
-        }
     }
     catch (Throwable e) {
         // add back the documentIds and module names
         synchronize(context, () {
-            context.changedDocumentIds.addAll(changedDocumentIdsToClear);
+            context.changedDocumentIds.addAll(context.level2CompilingChangedDocumentIds);
+            context.level2CompilingChangedDocumentIds = emptySet;
             context.level2QueuedModuleNames.addAll(context.level2RefreshingModuleNames);
             context.level2RefreshingModuleNames.clear();
         });

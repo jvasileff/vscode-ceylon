@@ -9,9 +9,14 @@ import ceylon.file {
     parseURI
 }
 import ceylon.interop.java {
-    createJavaStringArray
+    createJavaStringArray,
+    synchronize,
+    JavaList
 }
 
+import com.redhat.ceylon.common {
+    Backend
+}
 import com.redhat.ceylon.common.config {
     CeylonConfig
 }
@@ -21,6 +26,12 @@ import com.redhat.ceylon.compiler.typechecker.context {
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
+import com.vasileff.ceylon.dart.compiler {
+    dartBackend
+}
+import com.vasileff.ceylon.structures {
+    MutableMultimap
+}
 
 import io.typefox.lsapi {
     ShowMessageRequestParams,
@@ -29,7 +40,9 @@ import io.typefox.lsapi {
     MessageType
 }
 import io.typefox.lsapi.impl {
-    MessageParamsImpl
+    MessageParamsImpl,
+    DiagnosticImpl,
+    PublishDiagnosticsParamsImpl
 }
 import io.typefox.lsapi.services.transport.trace {
     MessageTracer
@@ -47,12 +60,6 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer
 }
-import com.redhat.ceylon.common {
-    Backend
-}
-import com.vasileff.ceylon.dart.compiler {
-    dartBackend
-}
 
 shared interface CeylonLanguageServerContext satisfies MessageTracer {
     shared formal Consumer<PublishDiagnosticsParams> publishDiagnostics;
@@ -69,6 +76,10 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
 
     shared formal MutableMap<String, String> documents;
     shared formal MutableSet<String> changedDocumentIds;
+    shared formal MutableSet<String> documentIdsWithDiagnostics;
+
+    shared formal MutableMultimap<String, CompletableFuture<[PhasedUnit=]>>
+            compiledDocumentIdFutures;
 
     "A map from module name to PhasedUnits."
     shared formal MutableMap<String, [PhasedUnit*]> phasedUnits;
@@ -84,6 +95,9 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
             case ("dart") dartBackend
             case ("js") Backend.javaScript
             else dartBackend;
+
+    shared formal variable Set<String> level1CompilingChangedDocumentIds;
+    shared formal variable Set<String> level2CompilingChangedDocumentIds;
 
     "Modules that have been compiled by level-1 that might be dependencies of modules
      currently being compiled by level-2 for the first time. The potential dependency
@@ -277,5 +291,80 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
                 }
             }
         });
+    }
+
+    shared
+    CompletableFuture<[PhasedUnit=]> unitForDocumentId(String? documentId) {
+        if (!exists documentId) {
+            return CompletableFuture.completedFuture<[PhasedUnit=]>([]);
+        }
+        value future = CompletableFuture<[PhasedUnit=]>();
+        synchronize(this, () {
+            if (!isSourceFile(documentId)) {
+                // if the documentId is not a sourceFile, complete the future now with []
+                future.complete([]);
+            }
+            else if (!documentId in changedDocumentIds,
+                !documentId in level1CompilingChangedDocumentIds,
+                !documentId in level2CompilingChangedDocumentIds,
+                exists moduleName
+                    =   moduleNameForDocumentId(
+                                allModuleNames, sourceDirectories, documentId),
+                phasedUnits[moduleName] nonempty) {
+
+                // if the documentId has not changed and is in a module that has been
+                // compiled, complete the future with the phased units we have now
+                future.complete(emptyOrSingleton(findUnitForDocumentId(documentId)));
+            }
+            else {
+                // otherwise, schedule the future to be complete once the documentId has
+                // been compiled
+                compiledDocumentIdFutures.put(documentId, future);
+            }
+        });
+        return future;
+    }
+
+    "Must be called from within a synchronized block on this context."
+    shared
+    void completeFuturesFor({String*} documentIds) {
+        for (documentId in documentIds) {
+            for (future in compiledDocumentIdFutures.removeAll(documentId)) {
+                completeFuture(documentId->future);
+            }
+        }
+    }
+
+    shared
+    PhasedUnit? findUnitForDocumentId(String documentId)
+        =>  if (exists moduleName = moduleNameForDocumentId(
+                    allModuleNames, sourceDirectories, documentId))
+            then (phasedUnits[moduleName] else []).find((pu)
+                    =>  pu.unitFile.path == documentId)
+            else null;
+
+    shared
+    void completeFuture(
+            String->CompletableFuture<[PhasedUnit=]> documentIdAndFuture) {
+        value documentId->future = documentIdAndFuture;
+        future.complete(emptyOrSingleton(findUnitForDocumentId(documentId)));
+    }
+
+    shared
+    void synchronizeDiagnostics([<String -> List<DiagnosticImpl>>*] documentIdDiagnostics) {
+        for (documentId->forDocument in documentIdDiagnostics) {
+            if (!forDocument.empty || documentId in documentIdsWithDiagnostics) {
+                value p = PublishDiagnosticsParamsImpl();
+                p.uri = toUri(documentId);
+                p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
+                publishDiagnostics.accept(p);
+                if (forDocument.empty) {
+                    documentIdsWithDiagnostics.remove(documentId);
+                }
+                else {
+                    documentIdsWithDiagnostics.add(documentId);
+                }
+            }
+        }
     }
 }

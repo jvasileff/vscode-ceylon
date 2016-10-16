@@ -68,7 +68,7 @@
                 "ceylon.serverLogPriority": {
                     "type": "string",
                     "default": "disabled",
-                    "description": "The logging level for the language server.",
+                    "description": "The logging level for the language server. For levels other than 'disabled', a log file will be created for each instance of the extension. Log files will be created in the '/tmp' directory if it exists, or the system default temporary directory otherwise.",
                     "enum": [
                         "trace", "debug", "info", "warn", "error", "fatal", "disabled"
                     ]

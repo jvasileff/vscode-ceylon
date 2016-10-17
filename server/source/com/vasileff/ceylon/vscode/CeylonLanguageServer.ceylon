@@ -83,7 +83,8 @@ import io.typefox.lsapi {
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
     CompletionItemBuilder,
-    HoverBuilder
+    HoverBuilder,
+    RangeBuilder
 }
 import io.typefox.lsapi.impl {
     InitializeResultImpl,
@@ -92,7 +93,9 @@ import io.typefox.lsapi.impl {
     CompletionOptionsImpl,
     DiagnosticImpl,
     MarkedStringImpl,
-    HoverImpl
+    HoverImpl,
+    LocationImpl,
+    RangeImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -123,6 +126,9 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer,
     Function
+}
+import com.vasileff.ceylon.vscode.idecommon {
+    FindDeclarationNodeVisitor
 }
 
 class CeylonLanguageServer()
@@ -240,6 +246,7 @@ class CeylonLanguageServer()
         capabilities.setHoverProvider(JBoolean(true));
         capabilities.completionProvider = CompletionOptionsImpl(JBoolean(false),
                 JavaList([javaString(".")]));
+        capabilities.setDefinitionProvider(JBoolean(true));
         result.capabilities = capabilities;
 
         return CompletableFuture.completedFuture<InitializeResult>(result);
@@ -306,8 +313,58 @@ class CeylonLanguageServer()
         }
 
         shared actual
-        CompletableFuture<List<out Location>>? definition(TextDocumentPositionParams that)
-            =>  null;
+        CompletableFuture<List<out Location>> definition
+                (TextDocumentPositionParams that) {
+
+            // TODO synchronize this?
+
+            // can we determine the declaration?
+            if (exists documentId = toDocumentIdString(that.textDocument.uri),
+                isSourceFile(documentId),
+                exists unit = findUnitForDocumentId(documentId),
+                exists declaration
+                        =   findDeclaration {
+                                documentId = documentId;
+                                row = that.position.line + 1;
+                                col = that.position.character;
+                                phasedUnit = unit;
+                            }) {
+
+                // is the declaration in the workspace, and can we find the PhasedUnit?
+                value declarationDocumentId = declaration.unit.fullPath else null;
+                if (exists declarationDocumentId,
+                    isSourceFile(declarationDocumentId),
+                    exists declarationUnit
+                        =   findUnitForDocumentId(declarationDocumentId)) {
+
+                    // find the identifying node and we're done
+                    value fdnv = FindDeclarationNodeVisitor(declaration);
+                    declarationUnit.compilationUnit.visit(fdnv);
+                    if (exists node = fdnv.declarationNode,
+                        exists idNode = getIdentifyingNode(node)) {
+                        value range
+                            =   newRange {
+                                    newPosition {
+                                        line = idNode.token.line - 1;
+                                        character = idNode.token.charPositionInLine;
+                                    };
+                                    newPosition {
+                                        line = idNode.endToken.line - 1;
+                                        character = idNode.endToken.charPositionInLine
+                                            + idNode.endToken.text.size;
+                                    };
+                                };
+                        return CompletableFuture.completedFuture<List<out Location>>(
+                            JavaList {
+                                [LocationImpl(toUri(declarationDocumentId), range)];
+                            });
+                    }
+                }
+            }
+
+            // nothing found. Send an empty list
+            return CompletableFuture.completedFuture<List<out Location>>(JavaList([]));
+        }
 
         shared actual
         void didChange(DidChangeTextDocumentParams that) {

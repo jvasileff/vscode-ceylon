@@ -41,6 +41,10 @@ import com.vasileff.ceylon.dart.compiler {
 import com.vasileff.ceylon.structures {
     ArrayListMultimap
 }
+import com.vasileff.ceylon.vscode.idecommon {
+    FindDeclarationNodeVisitor,
+    getIdentifyingNode
+}
 
 import io.typefox.lsapi {
     CodeActionParams,
@@ -83,8 +87,7 @@ import io.typefox.lsapi {
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
     CompletionItemBuilder,
-    HoverBuilder,
-    RangeBuilder
+    HoverBuilder
 }
 import io.typefox.lsapi.impl {
     InitializeResultImpl,
@@ -94,8 +97,7 @@ import io.typefox.lsapi.impl {
     DiagnosticImpl,
     MarkedStringImpl,
     HoverImpl,
-    LocationImpl,
-    RangeImpl
+    LocationImpl
 }
 import io.typefox.lsapi.services {
     LanguageServer,
@@ -126,9 +128,6 @@ import java.util.concurrent.atomic {
 import java.util.\ifunction {
     Consumer,
     Function
-}
-import com.vasileff.ceylon.vscode.idecommon {
-    FindDeclarationNodeVisitor
 }
 
 class CeylonLanguageServer()

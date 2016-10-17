@@ -5,10 +5,10 @@ import com.redhat.ceylon.compiler.typechecker.parser {
 }
 import com.redhat.ceylon.compiler.typechecker.tree {
     AnalysisMessage,
-    CustomTree,
-    Message,
-    Tree,
-    Node
+    Message
+}
+import com.vasileff.ceylon.vscode.idecommon {
+    getIdentifyingNode
 }
 
 import io.typefox.lsapi.impl {
@@ -19,9 +19,6 @@ import io.typefox.lsapi.impl {
 import org.antlr.runtime {
     CommonToken
 }
-import com.vasileff.ceylon.vscode.idecommon {
-    getIdentifyingNode
-}
 
 shared
 RangeImpl rangeForMessage(Message message) {
@@ -29,12 +26,12 @@ RangeImpl rangeForMessage(Message message) {
             =   messageLocation(message)) {
         return newRange {
             newPosition {
-                line = startLine - 1;
+                line = startLine;
                 character = startColumn;
             };
             newPosition {
-                line = endLine - 1;
-                character = endColumn + 1;
+                line = endLine;
+                character = endColumn;
             };
         };
     }
@@ -51,19 +48,19 @@ Integer[4]? messageLocation(Message error) {
         value recognitionError = error;
         value re = recognitionError.recognitionException;
         if (is LexError error) {
-            startLine = re.line;
+            startLine = re.line - 1;
             startColumn = re.charPositionInLine;
-            endLine = re.line;
-            endColumn = re.charPositionInLine;
+            endLine = re.line - 1;
+            endColumn = re.charPositionInLine + 1;
         }
         else if (is CommonToken token = re.token) {
             // TODO if eof on an empty line, try to mark the error on the previous
             //      line instead? But then, that line might be empty too.
             value eofAdjust = (token.type == CeylonParser.eof) then -1 else 0;
-            startLine = token.line;
+            startLine = token.line - 1;
             startColumn = largest(0, token.charPositionInLine + eofAdjust);
-            endLine = token.line;
-            endColumn = startColumn + token.stopIndex - token.startIndex;
+            endLine = token.line - 1;
+            endColumn = startColumn + token.stopIndex - token.startIndex + 1;
         }
         else {
             return null;
@@ -74,11 +71,11 @@ Integer[4]? messageLocation(Message error) {
         value treeNode = analysisMessage.treeNode;
         value errorNode = getIdentifyingNode(treeNode) else treeNode;
         if (is CommonToken token = errorNode.token) {
-            startLine = token.line;
+            startLine = token.line - 1;
             startColumn = token.charPositionInLine;
-            endLine = errorNode.endToken.line;
+            endLine = errorNode.endToken.line - 1;
             endColumn = errorNode.endToken.charPositionInLine
-                + errorNode.endToken.text.size - 1;
+                + errorNode.endToken.text.size;
         }
         else {
             return null;

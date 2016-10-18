@@ -3,7 +3,8 @@ import ceylon.buffer.charset {
 }
 import ceylon.collection {
     HashSet,
-    HashMap
+    HashMap,
+    ArrayList
 }
 import ceylon.file {
     parsePath,
@@ -43,7 +44,8 @@ import com.vasileff.ceylon.structures {
 }
 import com.vasileff.ceylon.vscode.idecommon {
     FindDeclarationNodeVisitor,
-    getIdentifyingNode
+    getIdentifyingNode,
+    FindReferencesVisitor
 }
 
 import io.typefox.lsapi {
@@ -82,12 +84,14 @@ import io.typefox.lsapi {
     TextDocumentSyncKind,
     Range,
     Message,
-    FileChangeType
+    FileChangeType,
+    DocumentHighlightKind
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
     CompletionItemBuilder,
-    HoverBuilder
+    HoverBuilder,
+    DocumentHighlightBuilder
 }
 import io.typefox.lsapi.impl {
     InitializeResultImpl,
@@ -127,7 +131,8 @@ import java.util.concurrent.atomic {
 }
 import java.util.\ifunction {
     Consumer,
-    Function
+    Function,
+    Supplier
 }
 
 class CeylonLanguageServer()
@@ -246,6 +251,7 @@ class CeylonLanguageServer()
         capabilities.completionProvider = CompletionOptionsImpl(JBoolean(false),
                 JavaList([javaString(".")]));
         capabilities.setDefinitionProvider(JBoolean(true));
+        capabilities.setDocumentHighlightProvider(JBoolean(true));
         result.capabilities = capabilities;
 
         return CompletableFuture.completedFuture<InitializeResult>(result);
@@ -477,8 +483,71 @@ class CeylonLanguageServer()
 
         shared actual
         CompletableFuture<List<out DocumentHighlight>>? documentHighlight
-                (TextDocumentPositionParams that)
-            =>  null;
+                (TextDocumentPositionParams that) {
+
+            value documentId = toDocumentIdString(that.textDocument.uri);
+
+            // TODO should we wait for compile with unitForDocumentId(documentId)?
+
+            if (exists documentId,
+                isSourceFile(documentId),
+                exists unit
+                        =   findUnitForDocumentId(documentId),
+                exists declaration
+                        =   findDeclaration {
+                                documentId = documentId;
+                                row = that.position.line + 1;
+                                col = that.position.character;
+                                phasedUnit = unit;
+                            }) {
+
+                return CompletableFuture.supplyAsync(object
+                        satisfies Supplier<List<out DocumentHighlight>> {
+                    shared actual List<out DocumentHighlight> get() {
+
+                        value frv = FindReferencesVisitor(declaration);
+
+                        // TODO distiguish read vs write occurences. The IntelliJ
+                        //      plugin seems to be able to do this. Or, the
+                        //      FindAssignmentsVisitor can probably be adapted.
+
+                        // FIXME declarations assigned to in the same scope are not
+                        //      being highlighted, while the last assignment is being
+                        //      highlighted *in full* as the declaration.
+                        //          variable Integer x1 = 0;
+                        //          x1 = 1;
+                        //          x1 = 2;
+
+                        value highlights = ArrayList<DocumentHighlight>();
+                        unit.compilationUnit.visit(frv);
+                        for (node in frv.referenceNodes) {
+                            if (exists range = rangeForNode(node)) {
+                                value builder = DocumentHighlightBuilder();
+                                builder.range(range);
+                                builder.kind(DocumentHighlightKind.text);
+                                highlights.add(builder.build());
+                            }
+                        }
+
+                        value fdnv = FindDeclarationNodeVisitor(frv.declaration);
+                        unit.compilationUnit.visit(fdnv);
+                        if (exists declarationNode = fdnv.declarationNode,
+                                exists node = getIdentifyingNode(declarationNode),
+                                exists range = rangeForNode(node)) {
+                            value builder = DocumentHighlightBuilder();
+                            builder.range(range);
+                            builder.kind(DocumentHighlightKind.text);
+                            highlights.add(builder.build());
+                        }
+
+                        return JavaList(highlights);
+                    }
+                });
+            }
+
+            return CompletableFuture.completedFuture<List<out DocumentHighlight>>(
+                    JavaList<DocumentHighlight>([]));
+        }
 
         shared actual
         CompletableFuture<List<out SymbolInformation>>? documentSymbol

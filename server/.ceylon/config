@@ -9,6 +9,7 @@ encoding=UTF-8
 output=../client/out/modules
 lookup=../client/out/modules
 lookup=../client/lib
+remote=aether:../client/settings.xml
 
 [compiler]
 source=source

@@ -18,9 +18,9 @@ module com.vasileff.ceylon.vscode "0.0.1" {
     // ceylon.markdown.core is not in Herd
     shared import ceylon.markdown.core "1.0.0-vscode";
 
-    shared import maven:"io.typefox.lsapi:io.typefox.lsapi" "0.3.0";
-    shared import maven:"io.typefox.lsapi:io.typefox.lsapi.services" "0.3.0";
-    shared import maven:"io.typefox.lsapi:io.typefox.lsapi.annotations" "0.3.0";
+    shared import maven:"io.typefox.lsapi:io.typefox.lsapi" "0.4.0-SNAPSHOT";
+    shared import maven:"io.typefox.lsapi:io.typefox.lsapi.services" "0.4.0-SNAPSHOT";
+    shared import maven:"io.typefox.lsapi:io.typefox.lsapi.annotations" "0.4.0-SNAPSHOT";
 
     // shouldn't be necessary, but is:
     shared import maven:"org.eclipse.xtend:org.eclipse.xtend.lib" "2.10.0";

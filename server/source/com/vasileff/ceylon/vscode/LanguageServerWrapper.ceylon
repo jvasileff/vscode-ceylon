@@ -182,7 +182,7 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             }
         }
 
-        shared actual CompletableFuture<DocumentHighlight>? documentHighlight
+        shared actual CompletableFuture<List<out DocumentHighlight>>? documentHighlight
                 (TextDocumentPositionParams? that) {
             try {
                 return delegate.documentHighlight(that);

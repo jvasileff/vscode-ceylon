@@ -304,7 +304,7 @@ class CeylonLanguageServer()
                             .build());
                     }
                     if (completer.completions.empty) {
-                        builder.incomplete(true);
+                        builder.isIncomplete(true);
                     }
                     return builder.build();
                 }
@@ -476,7 +476,7 @@ class CeylonLanguageServer()
         void didSave(DidSaveTextDocumentParams that) {}
 
         shared actual
-        CompletableFuture<DocumentHighlight>? documentHighlight
+        CompletableFuture<List<out DocumentHighlight>>? documentHighlight
                 (TextDocumentPositionParams that)
             =>  null;
 

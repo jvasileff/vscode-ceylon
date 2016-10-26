@@ -29,61 +29,53 @@ class DeclarationInfo(
         shared DocInfo? docInfo) {
 
     shared void write(Anything(String) write) {
+        writeSignatureMarkdown(write);
+        write("\n");
+        writeDocMarkdown(write);
+    }
+
+    shared void writeSignatureMarkdown(Anything(String) write) {
         // signature
         write("**`");
         signatureInfo.write(write);
         write("`**");
-        variable value first = true;
+    }
 
-        value bullet = '\{ELEPHANT}'.string;
-        //value bullet = '\{TRIANGULAR BULLET}'.string;
+    shared void writeDocMarkdown(Anything(String) write) {
+        value bullet = "-";
 
-        // doc
         if (exists docInfo) {
-            first = false;
-            write("\n\n");
             docInfo.write(write);
+            write("\n");
         }
-
         if (exists packageContainer) {
-            if (first) {
-                write("\n");
-            }
-            first = false;
             write("\n");
             write("``bullet`` Member of: ```packageContainer```");
             write("\n");
         }
         else if (exists classOrInterfaceContainer) {
-            if (first) {
-                write("\n");
-            }
-            first = false;
             write("\n");
-            first = false;
             write("``bullet`` Member of: ```classOrInterfaceContainer```");
             write("\n");
         }
         if (exists extendedType) {
-            if (first) {
-                write("\n");
-            }
-            first = false;
             write("\n");
             write("``bullet`` Extends: ```extendedType```");
             write("\n");
         }
         if (nonempty satisfiedTypes) {
-            if (first) {
-                write("\n");
-            }
-            first = false;
             write("\n");
             write("``bullet`` Satisfies: ```" & ".join(satisfiedTypes)```");
             write("\n");
         }
 
         // TODO "parameterInfo" see, returns, throws, accepts
+    }
+
+    shared String docMarkdownString {
+        value sb = StringBuilder();
+        writeDocMarkdown(sb.append);
+        return sb.string;
     }
 
     shared actual String string {

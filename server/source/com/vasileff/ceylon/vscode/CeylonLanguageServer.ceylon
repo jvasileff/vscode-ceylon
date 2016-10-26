@@ -581,9 +581,11 @@ class CeylonLanguageServer()
                                 phasedUnit = unit;
                             }) {
 
-                value docs = getDeclarationInfo(declaration).string;
+                value declarationInfo = getDeclarationInfo(declaration);
                 value hover = HoverBuilder();
-                hover.content(MarkedStringImpl(MarkedStringImpl.plainString, docs));
+                hover.content("ceylon", declarationInfo.signatureInfo.string);
+                hover.content(MarkedStringImpl(MarkedStringImpl.plainString,
+                        declarationInfo.docMarkdownString));
                 return CompletableFuture.completedFuture<Hover>(hover.build());
             }
 

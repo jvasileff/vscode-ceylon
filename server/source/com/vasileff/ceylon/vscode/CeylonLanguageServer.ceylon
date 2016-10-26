@@ -85,8 +85,7 @@ import io.typefox.lsapi {
     Range,
     Message,
     FileChangeType,
-    DocumentHighlightKind,
-    CompletionItemKind
+    DocumentHighlightKind
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,

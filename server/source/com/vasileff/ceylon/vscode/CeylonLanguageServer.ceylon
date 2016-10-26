@@ -85,7 +85,8 @@ import io.typefox.lsapi {
     Range,
     Message,
     FileChangeType,
-    DocumentHighlightKind
+    DocumentHighlightKind,
+    CompletionItemKind
 }
 import io.typefox.lsapi.builders {
     CompletionListBuilder,
@@ -305,8 +306,7 @@ class CeylonLanguageServer()
                             .label(renderCompletionLabel(completion))
                             .detail(renderCompletionDetail(completion))
                             .documentation(renderCompletionDocumentation(completion))
-                            // TODO set kind
-                            //.kind(CompletionItemKind.method)
+                            .kind(completion.kind)
                             .build());
                     }
                     if (completer.completions.empty) {

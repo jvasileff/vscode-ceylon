@@ -17,7 +17,12 @@ import com.redhat.ceylon.model.typechecker.model {
     Type,
     TypeDeclaration,
     Unit,
-    Declaration
+    Declaration,
+    Function,
+    Class,
+    Interface,
+    Value,
+    ModelUtil
 }
 
 import java.lang {
@@ -29,10 +34,14 @@ import java.util {
         emptyMap
     }
 }
+import io.typefox.lsapi {
+    CompletionItemKind
+}
 
 class CompletionDeclarationInfo(
         shared DeclarationInfo declarationInfo,
-        shared Boolean withArguments) {}
+        shared Boolean withArguments,
+        shared CompletionItemKind kind) {}
 
 class Autocompleter(String documentId, Integer row, Integer col, PhasedUnit phasedUnit) {
 
@@ -118,11 +127,37 @@ class Autocompleter(String documentId, Integer row, Integer col, PhasedUnit phas
                             withArguments
                                 =   !declaration is TypeDeclaration
                                         && declaration is Functional;
+                            kind = kindForDeclaration(declaration);
                         });
         }
         else {
             return [];
         }
+    }
+
+    CompletionItemKind kindForDeclaration(Declaration declaration) {
+        if (is Function declaration) {
+            if (declaration.member) {
+                return CompletionItemKind.method;
+            }
+            return CompletionItemKind.\ifunction;
+        }
+        if (is Class declaration) {
+            return CompletionItemKind.\iclass;
+        }
+        if (ModelUtil.isConstructor(declaration)) {
+            return CompletionItemKind.constructor;
+        }
+        if (is Interface declaration) {
+            return CompletionItemKind.\iinterface;
+        }
+        if (is Value declaration) {
+            if (declaration.member) {
+                return CompletionItemKind.field;
+            }
+            return CompletionItemKind.property;
+        }
+        return CompletionItemKind.text;
     }
 }
 

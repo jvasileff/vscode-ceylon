@@ -102,7 +102,7 @@
 
 		<dict>
 			<key>match</key>
-			<string>\b(doc|by|license|see|throws|tagged|shared|abstract|formal|default|actual|variable|late|native|deprecated|final|sealed|annotation|suppressWarnings)\b</string>	
+			<string>\b(doc|by|license|see|throws|tagged|shared|abstract|formal|default|actual|variable|late|native|deprecated|final|sealed|annotation|suppressWarnings|static)\b</string>	
 			<key>name</key>
 			<string>keyword.other.ceylon</string>
 		</dict>

@@ -14,3 +14,4 @@ remote=aether:../client/settings.xml
 [compiler]
 source=source
 resource=resource
+suppresswarning=inferredNotNull

@@ -31,10 +31,10 @@ void runApp([String*] arguments) {
 
     value port
         =   if (exists port = arguments[0])
-            then parseInteger(port)
+            then Integer.parse(port)
             else null;
 
-    if (!exists port) {
+    if (!is Integer port) {
         log.fatal("error: no port specified");
         throw Exception("no port specified");
     }

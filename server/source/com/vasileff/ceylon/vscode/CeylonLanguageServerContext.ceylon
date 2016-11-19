@@ -33,21 +33,6 @@ import com.vasileff.ceylon.structures {
     MutableMultimap
 }
 
-import io.typefox.lsapi {
-    ShowMessageRequestParams,
-    MessageParams,
-    PublishDiagnosticsParams,
-    MessageType
-}
-import io.typefox.lsapi.impl {
-    MessageParamsImpl,
-    DiagnosticImpl,
-    PublishDiagnosticsParamsImpl
-}
-import io.typefox.lsapi.services.transport.trace {
-    MessageTracer
-}
-
 import java.io {
     JFile=File
 }
@@ -57,15 +42,19 @@ import java.util.concurrent {
 import java.util.concurrent.atomic {
     AtomicBoolean
 }
-import java.util.\ifunction {
-    Consumer
+
+import org.eclipse.lsp4j {
+    MessageType,
+    MessageParams,
+    Diagnostic,
+    PublishDiagnosticsParams
+}
+import org.eclipse.lsp4j.services {
+    LanguageClient
 }
 
-shared interface CeylonLanguageServerContext satisfies MessageTracer {
-    shared formal Consumer<PublishDiagnosticsParams> publishDiagnostics;
-    shared formal Consumer<MessageParams> logMessage;
-    shared formal Consumer<MessageParams> showMessage;
-    shared formal Consumer<ShowMessageRequestParams> showMessageRequest;
+shared interface CeylonLanguageServerContext {
+    shared formal LanguageClient languageClient;
 
     shared formal Directory? rootDirectory;
     shared formal variable Set<Module> moduleCache;
@@ -254,26 +243,26 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
 
     shared
     void showInfo(String text) {
-        value messageParams = MessageParamsImpl();
+        value messageParams = MessageParams();
         messageParams.message = text;
         messageParams.type = MessageType.info;
-        showMessage.accept(messageParams);
+        languageClient.showMessage(messageParams);
     }
 
     shared
     void showError(String text) {
-        value messageParams = MessageParamsImpl();
+        value messageParams = MessageParams();
         messageParams.message = text;
         messageParams.type = MessageType.error;
-        showMessage.accept(messageParams);
+        languageClient.showMessage(messageParams);
     }
 
     shared
     void showWarning(String text) {
-        value messageParams = MessageParamsImpl();
+        value messageParams = MessageParams();
         messageParams.message = text;
         messageParams.type = MessageType.warning;
-        showMessage.accept(messageParams);
+        languageClient.showMessage(messageParams);
     }
 
     shared
@@ -287,7 +276,8 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
                     runArgument();
                 }
                 catch (Throwable t) {
-                    onError(t.message, t);
+// FIXME WIP error handling
+                    //onError(t.message, t);
                 }
             }
         });
@@ -351,13 +341,13 @@ shared interface CeylonLanguageServerContext satisfies MessageTracer {
     }
 
     shared
-    void synchronizeDiagnostics([<String -> List<DiagnosticImpl>>*] documentIdDiagnostics) {
+    void synchronizeDiagnostics([<String -> List<Diagnostic>>*] documentIdDiagnostics) {
         for (documentId->forDocument in documentIdDiagnostics) {
             if (!forDocument.empty || documentId in documentIdsWithDiagnostics) {
-                value p = PublishDiagnosticsParamsImpl();
+                value p = PublishDiagnosticsParams();
                 p.uri = toUri(documentId);
-                p.diagnostics = JavaList<DiagnosticImpl>(forDocument);
-                publishDiagnostics.accept(p);
+                p.diagnostics = JavaList<Diagnostic>(forDocument);
+                languageClient.publishDiagnostics(p);
                 if (forDocument.empty) {
                     documentIdsWithDiagnostics.remove(documentId);
                 }

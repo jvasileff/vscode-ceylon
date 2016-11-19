@@ -48,71 +48,6 @@ import com.vasileff.ceylon.vscode.idecommon {
     FindReferencesVisitor
 }
 
-import io.typefox.lsapi {
-    CodeActionParams,
-    MessageParams,
-    InitializeParams,
-    TextEdit,
-    DidOpenTextDocumentParams,
-    TextDocumentPositionParams,
-    CodeLensParams,
-    ReferenceParams,
-    CompletionList,
-    PublishDiagnosticsParams,
-    DidSaveTextDocumentParams,
-    DidChangeTextDocumentParams,
-    DocumentHighlight,
-    DocumentSymbolParams,
-    SignatureHelp,
-    SymbolInformation,
-    CodeLens,
-    Command,
-    ShowMessageRequestParams,
-    DocumentFormattingParams,
-    CompletionItem,
-    DidCloseTextDocumentParams,
-    DidChangeWatchedFilesParams,
-    Location,
-    WorkspaceSymbolParams,
-    Hover,
-    WorkspaceEdit,
-    DocumentOnTypeFormattingParams,
-    DidChangeConfigurationParams,
-    DocumentRangeFormattingParams,
-    InitializeResult,
-    RenameParams,
-    TextDocumentSyncKind,
-    Range,
-    Message,
-    FileChangeType,
-    DocumentHighlightKind
-}
-import io.typefox.lsapi.builders {
-    CompletionListBuilder,
-    CompletionItemBuilder,
-    HoverBuilder,
-    DocumentHighlightBuilder
-}
-import io.typefox.lsapi.impl {
-    InitializeResultImpl,
-    ServerCapabilitiesImpl,
-    PublishDiagnosticsParamsImpl,
-    CompletionOptionsImpl,
-    DiagnosticImpl,
-    MarkedStringImpl,
-    HoverImpl,
-    LocationImpl
-}
-import io.typefox.lsapi.services {
-    LanguageServer,
-    TextDocumentService,
-    WorkspaceService,
-    WindowService
-}
-import io.typefox.lsapi.services.transport.trace {
-    MessageTracer
-}
-
 import java.io {
     JFile=File
 }
@@ -130,20 +65,63 @@ import java.util.concurrent.atomic {
     AtomicBoolean
 }
 import java.util.\ifunction {
-    Consumer,
     Function,
     Supplier
 }
 
+import org.eclipse.lsp4j {
+    CodeActionParams,
+    InitializeParams,
+    TextEdit,
+    DidOpenTextDocumentParams,
+    TextDocumentPositionParams,
+    CodeLensParams,
+    ReferenceParams,
+    CompletionList,
+    PublishDiagnosticsParams,
+    DidSaveTextDocumentParams,
+    DidChangeTextDocumentParams,
+    DocumentHighlight,
+    DocumentSymbolParams,
+    SignatureHelp,
+    SymbolInformation,
+    CodeLens,
+    Command,
+    DocumentFormattingParams,
+    CompletionItem,
+    DidCloseTextDocumentParams,
+    DidChangeWatchedFilesParams,
+    Location,
+    WorkspaceSymbolParams,
+    Hover,
+    WorkspaceEdit,
+    DocumentOnTypeFormattingParams,
+    DidChangeConfigurationParams,
+    DocumentRangeFormattingParams,
+    InitializeResult,
+    RenameParams,
+    TextDocumentSyncKind,
+    Range,
+    FileChangeType,
+    DocumentHighlightKind,
+    ServerCapabilities,
+    CompletionOptions,
+    Diagnostic
+}
+import org.eclipse.lsp4j.services {
+    LanguageClientAware,
+    LanguageClient,
+    LanguageServer,
+    TextDocumentService,
+    WorkspaceService
+}
+
 class CeylonLanguageServer()
-        satisfies LanguageServer & MessageTracer & CeylonLanguageServerContext {
+        satisfies LanguageServer & LanguageClientAware & CeylonLanguageServerContext {
 
     shared actual variable Set<Module> moduleCache = emptySet;
 
-    shared actual late Consumer<PublishDiagnosticsParams> publishDiagnostics;
-    shared actual late Consumer<MessageParams> logMessage;
-    shared actual late Consumer<MessageParams> showMessage;
-    shared actual late Consumer<ShowMessageRequestParams> showMessageRequest;
+    shared actual late LanguageClient languageClient;
     shared actual late Directory? rootDirectory;
     shared actual variable JsonObject? settings = null;
     shared actual variable [String*] sourceDirectories = ["source/"];
@@ -172,6 +150,10 @@ class CeylonLanguageServer()
     cachedModuleNamesCompiledFromSource = HashSet<String>();
 
     CeylonLanguageServerContext context => this;
+
+    shared actual
+    void connect(LanguageClient languageClient)
+        =>  this.languageClient = languageClient;
 
     shared actual
     CompletableFuture<InitializeResult> initialize(InitializeParams that) {
@@ -243,26 +225,34 @@ class CeylonLanguageServer()
             log.info("no root path provided");
         }
 
-        value result = InitializeResultImpl();
-        value capabilities = ServerCapabilitiesImpl();
+        value result = InitializeResult();
+        value capabilities = ServerCapabilities();
 
         capabilities.textDocumentSync = TextDocumentSyncKind.incremental;
-        capabilities.setHoverProvider(JBoolean(true));
-        capabilities.completionProvider = CompletionOptionsImpl(JBoolean(false),
-                JavaList([javaString(".")]));
-        capabilities.setDefinitionProvider(JBoolean(true));
-        capabilities.setDocumentHighlightProvider(JBoolean(true));
+        capabilities.hoverProvider = JBoolean(true);
+        capabilities.completionProvider = CompletionOptions(
+                JBoolean(false), JavaList([javaString(".")]));
+        capabilities.definitionProvider = JBoolean(true);
+        capabilities.documentHighlightProvider = JBoolean(true);
         result.capabilities = capabilities;
 
         return CompletableFuture.completedFuture<InitializeResult>(result);
     }
 
     shared actual
-    void onTelemetryEvent(Consumer<Object>? consumer) {}
+    suppressWarnings("expressionTypeNothing")
+    void exit() {
+        log.info("exit called");
+        // TODO there has to be a better way...
+        process.exit(0);
+    }
 
-    exit() => log.info("exit called");
-
-    shutdown() => log.info("shutdown called");
+    shared actual
+    CompletableFuture<Object> shutdown() {
+        log.info("shutdown called");
+        // for whatever reason, using 'object {}' results in an invalid JSON message.
+        return CompletableFuture.completedFuture<Object>(JavaUtil.newJavaObject());
+    }
 
     shared actual
     TextDocumentService textDocumentService => object
@@ -281,16 +271,16 @@ class CeylonLanguageServer()
             value documentId = toDocumentIdString(that.textDocument.uri);
 
             if (!exists documentId) {
-                return CompletableFuture.completedFuture(CompletionListBuilder().build());
+                return CompletableFuture.completedFuture(CompletionList());
             }
 
             return
             unitForDocumentId(documentId).thenApplyAsync<CompletionList>(object
                     satisfies Function<[PhasedUnit=], CompletionList> {
                 shared actual CompletionList apply([PhasedUnit=] unit) {
-                    value builder = CompletionListBuilder();
+                    value completionList = CompletionList();
                     if (!nonempty unit) {
-                        return builder.build();
+                        return completionList;
                     }
                     value completer
                         =   Autocompleter {
@@ -300,18 +290,19 @@ class CeylonLanguageServer()
                                 unit.first;
                     };
                     for (completion in completer.completions) {
-                        builder.item(CompletionItemBuilder()
-                            .insertText(renderCompletionInsertText(completion))
-                            .label(renderCompletionLabel(completion))
-                            .detail(renderCompletionDetail(completion))
-                            .documentation(renderCompletionDocumentation(completion))
-                            .kind(completion.kind)
-                            .build());
+                        value item = CompletionItem();
+                        item.insertText = renderCompletionInsertText(completion);
+                        item.label = renderCompletionLabel(completion);
+                        item.detail = renderCompletionDetail(completion);
+                        item.documentation = renderCompletionDocumentation(completion);
+                        item.kind = completion.kind;
+
+                        completionList.items.add(item);
                     }
                     if (completer.completions.empty) {
-                        builder.isIncomplete(true);
+                        completionList.setIsIncomplete(true);
                     }
-                    return builder.build();
+                    return completionList;
                 }
             });
         }
@@ -360,7 +351,7 @@ class CeylonLanguageServer()
                                 };
                         return CompletableFuture.completedFuture<List<out Location>>(
                             JavaList {
-                                [LocationImpl(toUri(declarationDocumentId), range)];
+                                [Location(toUri(declarationDocumentId), range)];
                             });
                     }
                 }
@@ -391,13 +382,7 @@ class CeylonLanguageServer()
                 }
                 variable value newText = existingText;
                 for (change in that.contentChanges) {
-                    switch (range = change.range)
-                    case (is Null) {
-                        newText = change.text;
-                    }
-                    else {
-                        newText = replaceRange(newText, range, change.text);
-                    }
+                    newText = replaceRange(newText, change.range, change.text);
                 }
                 documents[documentId] = newText;
                 changedDocumentIds.add(documentId);
@@ -521,10 +506,10 @@ class CeylonLanguageServer()
                         unit.compilationUnit.visit(frv);
                         for (node in frv.referenceNodes) {
                             if (exists range = rangeForNode(node)) {
-                                value builder = DocumentHighlightBuilder();
-                                builder.range(range);
-                                builder.kind(DocumentHighlightKind.text);
-                                highlights.add(builder.build());
+                                value documentHighlight = DocumentHighlight();
+                                documentHighlight.range = range;
+                                documentHighlight.kind = DocumentHighlightKind.text;
+                                highlights.add(documentHighlight);
                             }
                         }
 
@@ -533,10 +518,10 @@ class CeylonLanguageServer()
                         if (exists declarationNode = fdnv.declarationNode,
                                 exists node = getIdentifyingNode(declarationNode),
                                 exists range = rangeForNode(node)) {
-                            value builder = DocumentHighlightBuilder();
-                            builder.range(range);
-                            builder.kind(DocumentHighlightKind.text);
-                            highlights.add(builder.build());
+                            value documentHighlight = DocumentHighlight();
+                            documentHighlight.range = range;
+                            documentHighlight.kind = DocumentHighlightKind.text;
+                            highlights.add(documentHighlight);
                         }
 
                         return JavaList(highlights);
@@ -565,8 +550,7 @@ class CeylonLanguageServer()
 
             if (!isSourceFile(documentId)) {
                 // Always send an empty Hover for non-source files
-                return CompletableFuture.completedFuture<Hover>(
-                    HoverImpl(JavaList<MarkedStringImpl>([]), null));
+                return CompletableFuture.completedFuture<Hover>(Hover());
             }
             assert (exists documentId);
 
@@ -581,21 +565,17 @@ class CeylonLanguageServer()
                             }) {
 
                 value declarationInfo = getDeclarationInfo(declaration);
-                value hover = HoverBuilder();
-                hover.content("ceylon", declarationInfo.signatureInfo.string);
-                hover.content(MarkedStringImpl(MarkedStringImpl.plainString,
-                        declarationInfo.docMarkdownString));
-                return CompletableFuture.completedFuture<Hover>(hover.build());
+                value hover = Hover();
+                hover.contents.add(javaString {
+                    "\`\`\`\n``declarationInfo.signatureInfo.string``\n\`\`\`\n";
+                });
+                hover.contents.add(javaString(declarationInfo.docMarkdownString));
+                return CompletableFuture.completedFuture<Hover>(hover);
             }
 
             // nothing found. Send an empty Hover
-            return CompletableFuture.completedFuture<Hover>(
-                HoverImpl(JavaList<MarkedStringImpl>([]), null));
+            return CompletableFuture.completedFuture<Hover>(Hover());
         }
-
-        shared actual
-        void onPublishDiagnostics(Consumer<PublishDiagnosticsParams> that)
-            =>  publishDiagnostics = that;
 
         shared actual
         CompletableFuture<List<out TextEdit>>? onTypeFormatting
@@ -629,24 +609,9 @@ class CeylonLanguageServer()
     };
 
     shared actual
-    WindowService windowService => object satisfies WindowService {
-        shared actual
-        void onLogMessage(Consumer<MessageParams> that)
-            =>  logMessage = that;
-
-        shared actual
-        void onShowMessage(Consumer<MessageParams> that)
-            =>  showMessage = that;
-
-        shared actual
-        void onShowMessageRequest(Consumer<ShowMessageRequestParams> that)
-            =>  showMessageRequest = that;
-    };
-
-    shared actual
     WorkspaceService workspaceService => object satisfies WorkspaceService {
         shared actual
-        void didChangeConfiguraton(DidChangeConfigurationParams that) {
+        void didChangeConfiguration(DidChangeConfigurationParams that) {
             settings
                 =   if (is JsonObject obj = forceWrapJavaJson(that.settings))
                     then obj else null;
@@ -747,10 +712,10 @@ class CeylonLanguageServer()
     };
 
     void clearDiagnosticsForDocumentId(String documentId) {
-        value p = PublishDiagnosticsParamsImpl();
+        value p = PublishDiagnosticsParams();
         p.uri = toUri(documentId);
-        p.diagnostics = JavaList<DiagnosticImpl>([]);
-        publishDiagnostics.accept(p);
+        p.diagnostics = JavaList<Diagnostic>([]);
+        languageClient.publishDiagnostics(p);
     }
 
     suppressWarnings("unusedDeclaration")
@@ -759,10 +724,10 @@ class CeylonLanguageServer()
                      then documentId[i+1...]
                      else documentId;
         value diagnostics = compileFile(name, documentText);
-        value p = PublishDiagnosticsParamsImpl();
+        value p = PublishDiagnosticsParams();
         p.uri = toUri(documentId);
         p.diagnostics =JavaList(diagnostics);
-        publishDiagnostics.accept(p);
+        languageClient.publishDiagnostics(p);
     }
 
     "Populate [[documents]] with all source files found in all source directories.
@@ -805,7 +770,8 @@ class CeylonLanguageServer()
         }
     });
 
-    shared actual
+// FIXME WIP error handling?
+    shared //actual
     void onError(String? s, variable Throwable? throwable) {
 
         "Does this exception wrap an error that has already been reported to the user?"
@@ -868,19 +834,20 @@ class CeylonLanguageServer()
         }
     }
 
-    shared actual
-    void onRead(Message? message, String? s) {
-        value mm = message?.string else "<null>";
-        value ss = s else "<null>";
-        log.trace(()=>"(onRead) ``mm``, ``ss``");
-    }
-
-    shared actual
-    void onWrite(Message? message, String? s) {
-        value mm = message?.string else "<null>";
-        value ss = s else "<null>";
-        log.trace(()=>"(onWrite) ``mm``, ``ss``");
-    }
+// FIXME WIP logging?
+//    shared //actual
+//    void onRead(Message? message, String? s) {
+//        value mm = message?.string else "<null>";
+//        value ss = s else "<null>";
+//        log.trace(()=>"(onRead) ``mm``, ``ss``");
+//    }
+//
+//    shared //actual
+//    void onWrite(Message? message, String? s) {
+//        value mm = message?.string else "<null>";
+//        value ss = s else "<null>";
+//        log.trace(()=>"(onWrite) ``mm``, ``ss``");
+//    }
 }
 
 String readFile(File file) {

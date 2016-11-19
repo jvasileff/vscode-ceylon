@@ -92,6 +92,7 @@ shared class FindReferencesVisitor(Referenceable dec) extends Visitor() {
         }
     }
     
+    suppressWarnings("deprecation", "suppressesNothing")
     shared default Boolean isRefinedDeclarationReference(Declaration ref) 
             => if (is Declaration dec = declaration) 
             then dec.refines(ref) else false;

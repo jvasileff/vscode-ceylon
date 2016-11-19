@@ -13,9 +13,9 @@ import com.vasileff.ceylon.structures {
     ArrayListMultimap
 }
 
-import io.typefox.lsapi.impl {
-    DiagnosticImpl,
-    PublishDiagnosticsParamsImpl
+import org.eclipse.lsp4j {
+    Diagnostic,
+    PublishDiagnosticsParams
 }
 
 shared
@@ -136,10 +136,10 @@ Boolean compileLevel2(CeylonLanguageServerContext context) {
                         .getAll(removedModuleNames).coalesced)
                         .map(Entry.key)) {
                 if (documentId in context.documentIdsWithDiagnostics) {
-                    value p = PublishDiagnosticsParamsImpl();
+                    value p = PublishDiagnosticsParams();
                     p.uri = context.toUri(documentId);
-                    p.diagnostics = JavaList<DiagnosticImpl>([]);
-                    context.publishDiagnostics.accept(p);
+                    p.diagnostics = JavaList<Diagnostic>([]);
+                    context.languageClient.publishDiagnostics(p);
                     context.documentIdsWithDiagnostics.remove(documentId);
                 }
             }

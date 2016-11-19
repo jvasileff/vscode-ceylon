@@ -11,17 +11,16 @@ import com.vasileff.ceylon.vscode.idecommon {
     getIdentifyingNode
 }
 
-import io.typefox.lsapi.impl {
-    RangeImpl,
-    PositionImpl
-}
-
 import org.antlr.runtime {
     CommonToken
 }
+import org.eclipse.lsp4j {
+    Range,
+    Position
+}
 
 shared
-RangeImpl rangeForMessage(Message message) {
+Range rangeForMessage(Message message) {
     if (exists [startLine, startColumn, endLine, endColumn]
             =   messageLocation(message)) {
         return newRange {
@@ -35,7 +34,7 @@ RangeImpl rangeForMessage(Message message) {
             };
         };
     }
-    return RangeImpl(PositionImpl(), PositionImpl());
+    return Range(Position(), Position());
 }
 
 Integer[4]? messageLocation(Message error) {

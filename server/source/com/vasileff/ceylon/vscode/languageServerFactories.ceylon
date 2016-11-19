@@ -1,32 +1,28 @@
-import io.typefox.lsapi {
+import org.eclipse.lsp4j {
     MessageParams,
     MessageType,
-    DiagnosticSeverity
-}
-import io.typefox.lsapi.impl {
-    MessageParamsImpl,
-    DiagnosticImpl,
-    PositionImpl,
-    RangeImpl
+    DiagnosticSeverity,
+    Position,
+    Range,
+    Diagnostic
 }
 
 shared
 MessageParams newMessageParams(String message, MessageType type) {
-    value result = MessageParamsImpl();
+    value result = MessageParams();
     result.message = message;
     result.type = type;
     return result;
 }
 
 shared
-DiagnosticImpl newDiagnostic(
+Diagnostic newDiagnostic(
         String message,
-        RangeImpl range
-            =   RangeImpl(PositionImpl(), PositionImpl()),
+        Range range = Range(Position(), Position()),
         DiagnosticSeverity? severity = null,
         String? code = null) {
 
-    value result = DiagnosticImpl();
+    value result = Diagnostic();
     result.range = range;
     result.message = message;
     result.code = code;
@@ -35,9 +31,9 @@ DiagnosticImpl newDiagnostic(
 }
 
 shared
-RangeImpl newRange(PositionImpl start, PositionImpl end)
-    =>  RangeImpl(start, end);
+Range newRange(Position start, Position end)
+    =>  Range(start, end);
 
 shared
-PositionImpl newPosition(Integer line, Integer character)
-    =>  PositionImpl(line, character);
+Position newPosition(Integer line, Integer character)
+    =>  Position(line, character);

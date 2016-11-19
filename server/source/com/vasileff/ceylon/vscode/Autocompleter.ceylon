@@ -34,7 +34,7 @@ import java.util {
         emptyMap
     }
 }
-import io.typefox.lsapi {
+import org.eclipse.lsp4j {
     CompletionItemKind
 }
 
@@ -107,7 +107,7 @@ class Autocompleter(String documentId, Integer row, Integer col, PhasedUnit phas
                     completions = type.declaration.getMatchingMemberDeclarations(unit, scope, prefix, 0, null);
                 }
                 else {
-                    completions = noCompletions; 
+                    completions = noCompletions;
                 }
             }
             case (is Tree.Variable) {
@@ -173,7 +173,7 @@ class FindIdentifierVisitor(Integer row, Integer col) extends Visitor() {
                 result = [that, that.text[0:col-col0]];
             }
         }
-        
+
         super.visit(that);
     }
 
@@ -184,7 +184,7 @@ class FindIdentifierVisitor(Integer row, Integer col) extends Visitor() {
                 result = [that, ""];
             }
         }
-        
+
         super.visit(that);
     }
 }
@@ -197,7 +197,7 @@ class FindParentVisitor(shared variable Node node) extends Visitor() {
         if (found) {
             return;
         }
-        
+
         super.visitAny(node);
     }
 
@@ -205,13 +205,13 @@ class FindParentVisitor(shared variable Node node) extends Visitor() {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
 
@@ -219,13 +219,13 @@ class FindParentVisitor(shared variable Node node) extends Visitor() {
         if (found) {
             return;
         }
-        
+
         if (exists op = that.memberOperator, op == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
 
@@ -233,13 +233,13 @@ class FindParentVisitor(shared variable Node node) extends Visitor() {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
 
@@ -247,97 +247,97 @@ class FindParentVisitor(shared variable Node node) extends Visitor() {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
-    
+
     shared actual void visit(Tree.Declaration that) {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
-    
+
     shared actual void visit(Tree.InitializerParameter that) {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
-    
+
     shared actual void visit(Tree.SimpleType that) {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
-    
+
     shared actual void visit(Tree.MemberLiteral that) {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
-    
+
     shared actual void visit(Tree.SatisfiesCondition that) {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
-    
+
     shared actual void visit(Tree.NamedArgument that) {
         if (found) {
             return;
         }
-        
+
         if (exists id = that.identifier, id == node) {
             node = that;
             found = true;
             return;
         }
-        
+
         super.visit(that);
     }
 }

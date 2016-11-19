@@ -1,14 +1,18 @@
-import io.typefox.lsapi.services.json {
-    MessageJsonHandler,
-    StreamMessageReader,
-    StreamMessageWriter
-}
-import io.typefox.lsapi.services.transport.server {
-    LanguageServerEndpoint
-}
-
 import java.net {
     Socket
+}
+import java.util.concurrent {
+    Executors
+}
+
+import org.eclipse.lsp4j.jsonrpc {
+    MessageConsumer
+}
+import org.eclipse.lsp4j.jsonrpc.messages {
+    Message
+}
+import org.eclipse.lsp4j.launch {
+    LSPLauncher
 }
 
 shared void run()
@@ -42,20 +46,34 @@ void runApp([String*] arguments) {
     value socket = Socket("localhost", port);
     log.info("connected to parent using socket on port ``port``");
 
-    value handler = MessageJsonHandler();
-    value reader = StreamMessageReader(socket.inputStream, handler);
-    value writer = StreamMessageWriter(socket.outputStream, handler);
-    value ceylonLanguageServer = LanguageServerWrapper(CeylonLanguageServer());
-    value endpoint = LanguageServerEndpoint(ceylonLanguageServer);
+    value ceylonLanguageServer
+        =   LanguageServerWrapper(CeylonLanguageServer());
 
-    endpoint.setMessageTracer(ceylonLanguageServer);
+    value launcher
+        =   LSPLauncher.createServerLauncher(
+                ceylonLanguageServer,
+                socket.inputStream,
+                socket.outputStream,
+                Executors.newCachedThreadPool(),
+                (MessageConsumer consumer) {
+                    return object satisfies MessageConsumer {
+                        shared actual void consume(Message m) {
+                            log.trace(()=>"``className(m)`` ``m.string``");
+                            consumer.consume(m);
+                        }
+                    };
+                });
 
-    reader.setOnError(consumer((Throwable t) => log.error(t.string, t)));
-    writer.setOnError(consumer((Throwable t) => log.error(t.string, t)));
+    ceylonLanguageServer.connect(launcher.remoteProxy);
 
-    log.info("calling endpoint.connect()");
+// FIXME error handling?
+    //reader.setOnError(consumer((Throwable t) => log.error(t.string, t)));
+    //writer.setOnError(consumer((Throwable t) => log.error(t.string, t)));
+
+    log.info("calling launcher.startListening()");
     try {
-        endpoint.connect(reader, writer);
+        launcher.startListening();
+        //endpoint.connect(reader, writer);
     }
     catch (Throwable t) {
         log.fatal("Fatal error", t);

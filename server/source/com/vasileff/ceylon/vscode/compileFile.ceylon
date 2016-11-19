@@ -16,18 +16,16 @@ import com.vasileff.ceylon.dart.compiler {
     javaList
 }
 
-import io.typefox.lsapi {
-    DiagnosticSeverity
-}
-import io.typefox.lsapi.impl {
-    DiagnosticImpl
-}
-
 import java.io {
     ByteArrayInputStream
 }
 
-[DiagnosticImpl*] compileFile(String name, String textContent) {
+import org.eclipse.lsp4j {
+    DiagnosticSeverity,
+    Diagnostic
+}
+
+[Diagnostic*] compileFile(String name, String textContent) {
 
     value outerName = name;
 

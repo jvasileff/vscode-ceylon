@@ -1,6 +1,9 @@
 import com.redhat.ceylon.cmr.ceylon {
     CeylonUtils
 }
+import com.redhat.ceylon.common {
+    Backend
+}
 import com.redhat.ceylon.common.config {
     CeylonConfig
 }
@@ -10,6 +13,10 @@ import com.redhat.ceylon.compiler.typechecker.analyzer {
 import com.redhat.ceylon.compiler.typechecker.context {
     PhasedUnit
 }
+import com.redhat.ceylon.compiler.typechecker.tree {
+    Message,
+    TreeNode=Node
+}
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
@@ -18,27 +25,18 @@ import com.vasileff.ceylon.dart.compiler {
     dartBackend,
     CompilationStatus
 }
-
-import io.typefox.lsapi {
-    DiagnosticSeverity
-}
-import io.typefox.lsapi.impl {
-    DiagnosticImpl
-}
 import com.vasileff.ceylon.vscode.compiler {
     compileJS
 }
-import com.redhat.ceylon.common {
-    Backend
-}
-import com.redhat.ceylon.compiler.typechecker.tree {
-    Message,
-    TreeNode=Node
+
+import org.eclipse.lsp4j {
+    DiagnosticSeverity,
+    Diagnostic
 }
 
 "Returns the compiled modules, a list of the compiled documentIds, and all diagnostics."
 shared
-[[Module*], [PhasedUnit*], [String*], [<String->DiagnosticImpl>*]] compileModules(
+[[Module*], [PhasedUnit*], [String*], [<String->Diagnostic>*]] compileModules(
         [String*] sourceDirectories,
         Map<String, [<String -> String>*]> listingsByModuleName,
         {Module*} moduleCache,

@@ -13,7 +13,11 @@ import {
     LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, StreamInfo
 } from 'vscode-languageclient';
 
-PortFinder.basePort = 55747;
+// FIXME figure out how to remove this complete hack. See
+// http://stackoverflow.com/a/38833920/5076
+// The other option seems to be:
+// import PortFinder = require('portfinder');
+(PortFinder as any).basePort = 55747;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed

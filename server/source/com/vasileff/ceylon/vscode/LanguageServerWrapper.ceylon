@@ -1,13 +1,14 @@
-import io.typefox.lsapi.services {
-    LanguageServer,
-    TextDocumentService,
-    WindowService,
-    WorkspaceService
+import java.lang {
+    Error
 }
-import java.util.\ifunction {
-    Consumer
+import java.util {
+    List
 }
-import io.typefox.lsapi {
+import java.util.concurrent {
+    CompletableFuture
+}
+
+import org.eclipse.lsp4j {
     InitializeResult,
     InitializeParams,
     Command,
@@ -27,7 +28,6 @@ import io.typefox.lsapi {
     TextEdit,
     DocumentFormattingParams,
     Hover,
-    PublishDiagnosticsParams,
     DocumentOnTypeFormattingParams,
     DocumentRangeFormattingParams,
     ReferenceParams,
@@ -35,24 +35,16 @@ import io.typefox.lsapi {
     RenameParams,
     CompletionItem,
     SignatureHelp,
-    MessageParams,
-    ShowMessageRequestParams,
     DidChangeConfigurationParams,
     DidChangeWatchedFilesParams,
-    WorkspaceSymbolParams,
-    Message
+    WorkspaceSymbolParams
 }
-import java.util.concurrent {
-    CompletableFuture
-}
-import java.util {
-    List
-}
-import io.typefox.lsapi.services.transport.trace {
-    MessageTracer
-}
-import java.lang {
-    Error
+import org.eclipse.lsp4j.services {
+    LanguageServer,
+    TextDocumentService,
+    WorkspaceService,
+    LanguageClientAware,
+    LanguageClient
 }
 
 "Alias for all `java.lang.Error`s, of which `AssertionError` is one at runtime for
@@ -64,8 +56,17 @@ class WrappedError(JavaError error) extends Exception(null, error) {}
 "A wraper for [[LanguageServer]]s that catches [[AssertionError]]s and [[Error]]s and
  rethrows them as [[WrappedError]]s. This is necessary, since `java.lang.Error`s are not
  caught by the framework and basically hose the server."
-class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
-        satisfies LanguageServer & MessageTracer {
+class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
+        satisfies LanguageServer & LanguageClientAware {
+
+    shared actual void connect(LanguageClient languageClient) {
+        try {
+            delegate.connect(languageClient);
+        }
+        catch (Error | AssertionError e) {
+            throw WrappedError(e);
+        }
+    }
 
     shared actual void exit() {
         try {
@@ -86,16 +87,14 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         }
     }
 
-    shared actual void onTelemetryEvent(Consumer<Object>? that) {
+    shared actual CompletableFuture<Object> shutdown() {
         try {
-            delegate.onTelemetryEvent(that);
+            return delegate.shutdown();
         }
         catch (Error | AssertionError e) {
             throw WrappedError(e);
         }
     }
-
-    shared actual void shutdown() {}
 
     shared actual TextDocumentService? textDocumentService =>
             let (delegate = this.delegate.textDocumentService else null)
@@ -222,16 +221,6 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
             }
         }
 
-        shared actual void onPublishDiagnostics
-                (Consumer<PublishDiagnosticsParams>? that) {
-            try {
-                delegate.onPublishDiagnostics(that);
-            }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
-            }
-        }
-
         shared actual CompletableFuture<List<out TextEdit>>? onTypeFormatting
                 (DocumentOnTypeFormattingParams? that) {
             try {
@@ -303,51 +292,15 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
         }
     };
 
-    shared actual WindowService? windowService =>
-            let (delegate = this.delegate.windowService else null)
-            if (!exists delegate) then null else object
-            satisfies WindowService {
-
-        shared actual void onLogMessage
-                (Consumer<MessageParams>? that) {
-            try {
-                delegate.onLogMessage(that);
-            }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
-            }
-        }
-
-        shared actual void onShowMessage
-                (Consumer<MessageParams>? that) {
-            try {
-                delegate.onShowMessage(that);
-            }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
-            }
-        }
-
-        shared actual void onShowMessageRequest
-                (Consumer<ShowMessageRequestParams>? that) {
-            try {
-                delegate.onShowMessageRequest(that);
-            }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
-            }
-        }
-    };
-
     shared actual WorkspaceService? workspaceService =>
             let (delegate = this.delegate.workspaceService else null)
             if (!exists delegate) then null else object
             satisfies WorkspaceService {
 
-        shared actual void didChangeConfiguraton
+        shared actual void didChangeConfiguration
                 (DidChangeConfigurationParams? that) {
             try {
-                delegate.didChangeConfiguraton(that);
+                delegate.didChangeConfiguration(that);
             }
             catch (Error | AssertionError e) {
                 throw WrappedError(e);
@@ -376,30 +329,31 @@ class LanguageServerWrapper(LanguageServer & MessageTracer delegate)
 
     };
 
-    shared actual void onError(String? s, Throwable? throwable) {
-        try {
-            delegate.onError(s, throwable);
-        }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
-        }
-    }
-
-    shared actual void onRead(Message? message, String? s) {
-        try {
-            delegate.onRead(message, s);
-        }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
-        }
-    }
-
-    shared actual void onWrite(Message? message, String? s) {
-        try {
-            delegate.onWrite(message, s);
-        }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
-        }
-    }
+// FIXME error handling?
+//    shared actual void onError(String? s, Throwable? throwable) {
+//        try {
+//            delegate.onError(s, throwable);
+//        }
+//        catch (Error | AssertionError e) {
+//            throw WrappedError(e);
+//        }
+//    }
+//
+//    shared actual void onRead(Message? message, String? s) {
+//        try {
+//            delegate.onRead(message, s);
+//        }
+//        catch (Error | AssertionError e) {
+//            throw WrappedError(e);
+//        }
+//    }
+//
+//    shared actual void onWrite(Message? message, String? s) {
+//        try {
+//            delegate.onWrite(message, s);
+//        }
+//        catch (Error | AssertionError e) {
+//            throw WrappedError(e);
+//        }
+//    }
 }

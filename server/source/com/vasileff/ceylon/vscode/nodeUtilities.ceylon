@@ -1,15 +1,16 @@
-import io.typefox.lsapi.impl {
-    RangeImpl
-}
 import com.redhat.ceylon.compiler.typechecker.tree {
     Node
 }
+
 import org.antlr.runtime {
     CommonToken
 }
+import org.eclipse.lsp4j {
+    Range
+}
 
 shared
-RangeImpl? rangeForNode(Node node)
+Range? rangeForNode(Node node)
     =>  if (is CommonToken token = node.token)
         then newRange {
                 newPosition {

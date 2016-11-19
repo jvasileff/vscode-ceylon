@@ -5,9 +5,9 @@ autoexportmavendependencies=true
 encoding=UTF-8
 
 [repositories]
-#output=./modules
-output=../client/out/modules
-lookup=../client/out/modules
+output=./modules
+#output=../client/out/modules
+#lookup=../client/out/modules
 lookup=../client/lib
 remote=aether:../client/settings.xml
 

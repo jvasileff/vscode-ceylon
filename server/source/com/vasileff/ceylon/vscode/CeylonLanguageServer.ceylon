@@ -850,12 +850,25 @@ class CeylonLanguageServer()
 //    }
 }
 
+[Byte*] readBytes(File.Reader reader, Integer count) {
+    try {
+        return reader.readBytes(100);
+    }
+    catch (AssertionError e) {
+        // workaround https://github.com/ceylon/ceylon-sdk/issues/653
+        if (e.message == "end must be positive") {
+            return [];
+        }
+        throw e;
+    }
+}
+
 String readFile(File file) {
     // we can't use ceylon.file::lines() because it doesn't retain the trailing
     // newline, if one exists.
     try (reader = file.Reader()) {
         value decoder = utf8.cumulativeDecoder();
-        while (nonempty bytes = reader.readBytes(100)) {
+        while (nonempty bytes = readBytes(reader, 100)) {
             decoder.more(bytes);
         }
         return decoder.done().string;

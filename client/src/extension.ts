@@ -62,11 +62,11 @@ export function activate(context: VSCode.ExtensionContext) {
                         return;
                     }
                     let version = stdout.trim().substring(15);
-                    if (!version.startsWith("1.3.1")) {
+                    if (!version.startsWith("1.3.2")) {
                         VSCode.window.showErrorMessage(
                             "Unsupported Ceylon version " + version + ". " +
                             "This version of the Ceylon Language VSCode Plugin " +
-                            "requires Ceylon 1.3.1 and may not function correctly.");
+                            "requires Ceylon 1.3.2 and may not function correctly.");
                     }
                 }));
 

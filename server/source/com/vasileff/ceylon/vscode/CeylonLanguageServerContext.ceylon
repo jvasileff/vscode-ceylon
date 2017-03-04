@@ -53,7 +53,7 @@ import org.eclipse.lsp4j.services {
     LanguageClient
 }
 
-shared interface CeylonLanguageServerContext {
+shared interface CeylonLanguageServerContext satisfies ErrorListener {
     shared formal LanguageClient languageClient;
 
     shared formal Directory? rootDirectory;
@@ -276,8 +276,7 @@ shared interface CeylonLanguageServerContext {
                     runArgument();
                 }
                 catch (Throwable t) {
-// FIXME WIP error handling
-                    //onError(t.message, t);
+                    onError(t);
                 }
             }
         });

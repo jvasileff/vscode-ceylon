@@ -59,7 +59,8 @@ import java.util {
 }
 import java.util.concurrent {
     CompletableFuture,
-    ConcurrentSkipListSet
+    ConcurrentSkipListSet,
+    CompletionException
 }
 import java.util.concurrent.atomic {
     AtomicBoolean
@@ -117,7 +118,10 @@ import org.eclipse.lsp4j.services {
 }
 
 class CeylonLanguageServer()
-        satisfies LanguageServer & LanguageClientAware & CeylonLanguageServerContext {
+        satisfies LanguageServer
+                & LanguageClientAware
+                & ErrorListener
+                & CeylonLanguageServerContext {
 
     shared actual variable Set<Module> moduleCache = emptySet;
 
@@ -770,10 +774,8 @@ class CeylonLanguageServer()
         }
     });
 
-// FIXME WIP error handling?
-    shared //actual
-    void onError(String? s, variable Throwable? throwable) {
-
+    shared actual
+    void onError(variable Throwable? throwable) {
         "Does this exception wrap an error that has already been reported to the user?"
         variable Boolean isReportedException = false;
 
@@ -782,7 +784,7 @@ class CeylonLanguageServer()
 
         while (true) {
             switch (t = throwable)
-            case (is WrappedError) {
+            case (is CompletionException) {
                 throwable = t.cause;
             }
             case (is ReportedException) {
@@ -800,54 +802,27 @@ class CeylonLanguageServer()
 
         value unwrapped = throwable;
 
-        if (exists unwrapped, !isReportedException) {
+        if (!exists unwrapped) {
+            return;
+        }
+
+        if (!isReportedException) {
             // Send an error message to the client. If it's anything but a
             // ReportableException, prefix with "ExceptionType: "
             //
             // If it's a non AssertionError Error, prefix with "Fatal Error: "
-            try {
-                value prefix = StringBuilder();
-                if (!isReportableException) {
-                    if (unwrapped is JavaError && !unwrapped is AssertionError) {
-                        prefix.append("Fatal Error: ");
-                    }
-                    value cn = className(unwrapped);
-                    prefix.append(
-                        cn[((cn.lastOccurrence('.')else-1)+1)...] + ": ");
-                }
-                showError("``prefix``\
-                           ``unwrapped.message.replace("\n", "; ")``\
-                           \n\n``unwrapped.string``");
+            value prefix = StringBuilder();
+            if (!isReportableException) {
+                value cn = className(unwrapped);
+                prefix.append(cn[((cn.lastOccurrence('.')else-1)+1)...] + ": ");
             }
-            catch (AssertionError | Exception e) {
-                // Oh well!
-            }
+            showError("``prefix``\
+                       ``unwrapped.message.replace("\n", "; ")``\
+                       \n\n``unwrapped.string``");
         }
 
-        log.error(()=>"(onError) ``s else ""``", throwable);
-
-        if (exists unwrapped, unwrapped is JavaError && !unwrapped is AssertionError) {
-            // If from the main thread, this shuts down the server. We should probably
-            // do the same from background jobs too, although typechecker SOEs are
-            // really a problem.
-            throw unwrapped;
-        }
+        log.error(unwrapped.message, unwrapped);
     }
-
-// FIXME WIP logging?
-//    shared //actual
-//    void onRead(Message? message, String? s) {
-//        value mm = message?.string else "<null>";
-//        value ss = s else "<null>";
-//        log.trace(()=>"(onRead) ``mm``, ``ss``");
-//    }
-//
-//    shared //actual
-//    void onWrite(Message? message, String? s) {
-//        value mm = message?.string else "<null>";
-//        value ss = s else "<null>";
-//        log.trace(()=>"(onWrite) ``mm``, ``ss``");
-//    }
 }
 
 [Byte*] readBytes(File.Reader reader, Integer count) {

@@ -1,5 +1,6 @@
 import java.lang {
-    Error
+    Error,
+    RuntimeException
 }
 import java.util {
     List
@@ -47,24 +48,22 @@ import org.eclipse.lsp4j.services {
     LanguageClient
 }
 
-"Alias for all `java.lang.Error`s, of which `AssertionError` is one at runtime for
- non-Ceylon code, which fakes the inheritance away."
-alias JavaError => Error | AssertionError;
+"A [[LanguageServer]] wrapper that performs exception error handling for all events.
+ Both immediate exceptions and exceptions produced by Futures are passed to onError()
+ for logging and reporting.
 
-class WrappedError(JavaError error) extends Exception(null, error) {}
-
-"A wraper for [[LanguageServer]]s that catches [[AssertionError]]s and [[Error]]s and
- rethrows them as [[WrappedError]]s. This is necessary, since `java.lang.Error`s are not
- caught by the framework and basically hose the server."
-class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
+ That this class is necessary since the LSP4J framework does not offer a reasonable way
+ for us to provide our own exceptionHandler to the RemoteEndpoint."
+class LanguageServerWrapper
+        (LanguageServer & LanguageClientAware & ErrorListener delegate)
         satisfies LanguageServer & LanguageClientAware {
 
     shared actual void connect(LanguageClient languageClient) {
         try {
             delegate.connect(languageClient);
         }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
+        catch (Throwable t) {
+            throw reportAndRethrow(t);
         }
     }
 
@@ -72,27 +71,27 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
         try {
             delegate.exit();
         }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
+        catch (Throwable t) {
+            throw reportAndRethrow(t);
         }
     }
 
     shared actual CompletableFuture<InitializeResult>? initialize
             (InitializeParams? that) {
         try {
-            return delegate.initialize(that);
+            return addErrorHandling(delegate.initialize(that));
         }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
+        catch (Throwable t) {
+            throw reportAndRethrow(t);
         }
     }
 
-    shared actual CompletableFuture<Object> shutdown() {
+    shared actual CompletableFuture<Object>? shutdown() {
         try {
-            return delegate.shutdown();
+            return addErrorHandling(delegate.shutdown());
         }
-        catch (Error | AssertionError e) {
-            throw WrappedError(e);
+        catch (Throwable t) {
+            throw reportAndRethrow(t);
         }
     }
 
@@ -104,40 +103,40 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
         shared actual CompletableFuture<List<out Command>>? codeAction
                 (CodeActionParams? that) {
             try {
-                return delegate.codeAction(that);
+                return addErrorHandling(delegate.codeAction(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out CodeLens>>? codeLens
                 (CodeLensParams? that) {
             try {
-                return delegate.codeLens(that);
+                return addErrorHandling(delegate.codeLens(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<CompletionList>? completion
                 (TextDocumentPositionParams? that) {
             try {
-                return delegate.completion(that);
+                return addErrorHandling(delegate.completion(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out Location>>? definition
                 (TextDocumentPositionParams? that) {
             try {
-                return delegate.definition(that);
+                return addErrorHandling(delegate.definition(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
@@ -146,8 +145,8 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
             try {
                 delegate.didChange(that);
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
@@ -156,8 +155,8 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
             try {
                 delegate.didClose(that);
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
@@ -166,8 +165,8 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
             try {
                 delegate.didOpen(that);
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
@@ -176,118 +175,118 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
             try {
                 delegate.didSave(that);
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out DocumentHighlight>>? documentHighlight
                 (TextDocumentPositionParams? that) {
             try {
-                return delegate.documentHighlight(that);
+                return addErrorHandling(delegate.documentHighlight(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out SymbolInformation>>? documentSymbol
                 (DocumentSymbolParams? that) {
             try {
-                return delegate.documentSymbol(that);
+                return addErrorHandling(delegate.documentSymbol(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out TextEdit>>? formatting
                 (DocumentFormattingParams? that) {
             try {
-                return delegate.formatting(that);
+                return addErrorHandling(delegate.formatting(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<Hover>? hover
                 (TextDocumentPositionParams? that) {
             try {
-                return delegate.hover(that);
+                return addErrorHandling(delegate.hover(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out TextEdit>>? onTypeFormatting
                 (DocumentOnTypeFormattingParams? that) {
             try {
-                return delegate.onTypeFormatting(that);
+                return addErrorHandling(delegate.onTypeFormatting(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out TextEdit>>? rangeFormatting
                 (DocumentRangeFormattingParams? that) {
             try {
-                return delegate.rangeFormatting(that);
+                return addErrorHandling(delegate.rangeFormatting(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out Location>>? references
                 (ReferenceParams? that) {
             try {
-                return delegate.references(that);
+                return addErrorHandling(delegate.references(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<WorkspaceEdit>? rename
                 (RenameParams? that) {
             try {
-                return delegate.rename(that);
+                return addErrorHandling(delegate.rename(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<CodeLens>? resolveCodeLens
                 (CodeLens? that) {
             try {
-                return delegate.resolveCodeLens(that);
+                return addErrorHandling(delegate.resolveCodeLens(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<CompletionItem>? resolveCompletionItem
                 (CompletionItem? that) {
             try {
-                return delegate.resolveCompletionItem(that);
+                return addErrorHandling(delegate.resolveCompletionItem(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<SignatureHelp>? signatureHelp
                 (TextDocumentPositionParams? that) {
             try {
-                return delegate.signatureHelp(that);
+                return addErrorHandling(delegate.signatureHelp(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
     };
@@ -302,8 +301,8 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
             try {
                 delegate.didChangeConfiguration(that);
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
@@ -312,48 +311,36 @@ class LanguageServerWrapper(LanguageServer & LanguageClientAware delegate)
             try {
                 delegate.didChangeWatchedFiles(that);
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
 
         shared actual CompletableFuture<List<out SymbolInformation>>? symbol
                 (WorkspaceSymbolParams? that) {
             try {
-                return delegate.symbol(that);
+                return addErrorHandling(delegate.symbol(that));
             }
-            catch (Error | AssertionError e) {
-                throw WrappedError(e);
+            catch (Throwable t) {
+                throw reportAndRethrow(t);
             }
         }
-
     };
 
-// FIXME error handling?
-//    shared actual void onError(String? s, Throwable? throwable) {
-//        try {
-//            delegate.onError(s, throwable);
-//        }
-//        catch (Error | AssertionError e) {
-//            throw WrappedError(e);
-//        }
-//    }
-//
-//    shared actual void onRead(Message? message, String? s) {
-//        try {
-//            delegate.onRead(message, s);
-//        }
-//        catch (Error | AssertionError e) {
-//            throw WrappedError(e);
-//        }
-//    }
-//
-//    shared actual void onWrite(Message? message, String? s) {
-//        try {
-//            delegate.onWrite(message, s);
-//        }
-//        catch (Error | AssertionError e) {
-//            throw WrappedError(e);
-//        }
-//    }
+    CompletableFuture<T>? addErrorHandling<T>(CompletableFuture<T>? future) {
+        if (exists future) {
+            future.whenComplete((Anything r, Throwable? t) => delegate.onError(t));
+        }
+        return future;
+    }
+
+    Throwable reportAndRethrow(Throwable t) {
+        delegate.onError(t);
+        if (!t is Error | RuntimeException) {
+            // The framework expects only RuntimeExceptions
+            // unless thrown completing a Future.
+            throw RuntimeException(t);
+        }
+        throw t;
+    }
 }

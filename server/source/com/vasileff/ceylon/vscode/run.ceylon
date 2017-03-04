@@ -59,21 +59,23 @@ void runApp([String*] arguments) {
                     return object satisfies MessageConsumer {
                         shared actual void consume(Message m) {
                             log.trace(()=>"``className(m)`` ``m.string``");
-                            consumer.consume(m);
+                            try {
+                                consumer.consume(m);
+                            }
+                            catch (Throwable t) {
+                                log.fatal("Found this one... NBD.", t);
+                                throw t;
+                            }
                         }
                     };
                 });
 
     ceylonLanguageServer.connect(launcher.remoteProxy);
 
-// FIXME error handling?
-    //reader.setOnError(consumer((Throwable t) => log.error(t.string, t)));
-    //writer.setOnError(consumer((Throwable t) => log.error(t.string, t)));
-
     log.info("calling launcher.startListening()");
+
     try {
         launcher.startListening();
-        //endpoint.connect(reader, writer);
     }
     catch (Throwable t) {
         log.fatal("Fatal error", t);

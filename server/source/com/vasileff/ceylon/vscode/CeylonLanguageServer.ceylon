@@ -827,7 +827,7 @@ class CeylonLanguageServer()
 
 [Byte*] readBytes(File.Reader reader, Integer count) {
     try {
-        return reader.readBytes(100);
+        return reader.readBytes(count);
     }
     catch (AssertionError e) {
         // workaround https://github.com/ceylon/ceylon-sdk/issues/653

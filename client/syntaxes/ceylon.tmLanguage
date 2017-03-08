@@ -129,15 +129,67 @@
 		<!-- Literals -->
 		<dict>
 			<key>begin</key>
-			<string>("""|"|')</string>
+			<string>"""</string>
 			
 			<key>end</key>
-			<string>\1</string>
+			<string>"""</string>
 
 			<key>name</key>
-			<string>string.ceylon</string>
-	
+			<string>string.verbatim.ceylon</string>
 		</dict>
+
+        <dict>
+            <key>begin</key>
+            <string>'</string>
+
+            <key>end</key>
+            <string>'</string>
+
+            <key>name</key>
+            <string>string.ceylon</string>
+
+            <key>patterns</key>
+            <array>
+                <dict>
+                    <key>match</key>
+                    <string>\\.</string>
+                    <key>name</key>
+                    <string>constant.character.escape.ceylon</string>
+                </dict>
+            </array>
+        </dict>
+
+        <dict>
+            <key>begin</key>
+            <string>"</string>
+
+            <key>end</key>
+            <string>"|(``)</string>
+
+            <key>name</key>
+            <string>string.template.head.ceylon</string>
+
+            <key>patterns</key>
+            <array>
+                <dict>
+                    <key>match</key>
+                    <string>\\.</string>
+                    <key>name</key>
+                    <string>constant.character.escape.ceylon</string>
+                </dict>
+            </array>
+        </dict>
+
+        <dict>
+            <key>begin</key>
+            <string>``</string>
+
+            <key>end</key>
+            <string>"|``</string>
+
+            <key>name</key>
+            <string>string.template.midOrtail.ceylon</string>
+        </dict>
 
 		<dict>
 			<!-- Binary -->

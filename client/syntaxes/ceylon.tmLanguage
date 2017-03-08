@@ -61,37 +61,6 @@
 			<string>comment.shebang.ceylon</string>
 		</dict>
 
-				<!-- Import package -->
-		<!-- dict>
-			<key>begin</key>
-			<string>^\s*(import)</string>
-			
-			<key>end</key>
-			<string>\{</string>
-
-			<key>beginCaptures</key>
-			<dict>
-				<key>1</key>
-				<dict>
-					<key>name</key>
-					<string>keyword.control.ceylon</string>
-				</dict>
-			</dict>
-			
-			<key>endCaptures</key>
-			<dict>
-				<key>0</key>
-				<dict>
-					<key>name</key>
-					<string>pontuation.import.ceylon</string>
-				</dict>
-			</dict>
-		
-			<key>contentName</key>
-			<string>variable.parameter.package.ceylon</string>	
-		</dict-->
-
-
 		<!-- Keywords -->
 		<dict>
 			<key>match</key>

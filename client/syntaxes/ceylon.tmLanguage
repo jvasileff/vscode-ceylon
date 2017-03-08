@@ -102,7 +102,7 @@
 
 		<dict>
 			<key>match</key>
-			<string>\b(doc|by|license|see|throws|tagged|shared|abstract|formal|default|actual|variable|late|native|deprecated|final|sealed|annotation|suppressWarnings|static)\b</string>	
+			<string>\b(doc|by|license|see|throws|tagged|shared|abstract|formal|default|actual|variable|late|native|deprecated|final|sealed|annotation|suppressWarnings|static)\b</string>
 			<key>name</key>
 			<string>keyword.other.ceylon</string>
 		</dict>
@@ -138,58 +138,58 @@
 			<string>string.verbatim.ceylon</string>
 		</dict>
 
-        <dict>
-            <key>begin</key>
-            <string>'</string>
+		<dict>
+			<key>begin</key>
+			<string>'</string>
 
-            <key>end</key>
-            <string>'</string>
+			<key>end</key>
+			<string>'</string>
 
-            <key>name</key>
-            <string>string.ceylon</string>
+			<key>name</key>
+			<string>string.ceylon</string>
 
-            <key>patterns</key>
-            <array>
-                <dict>
-                    <key>match</key>
-                    <string>\\.</string>
-                    <key>name</key>
-                    <string>constant.character.escape.ceylon</string>
-                </dict>
-            </array>
-        </dict>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>match</key>
+					<string>\\.</string>
+					<key>name</key>
+					<string>constant.character.escape.ceylon</string>
+				</dict>
+			</array>
+		</dict>
 
-        <dict>
-            <key>begin</key>
-            <string>"</string>
+		<dict>
+			<key>begin</key>
+			<string>"</string>
 
-            <key>end</key>
-            <string>"|(``)</string>
+			<key>end</key>
+			<string>"|(``)</string>
 
-            <key>name</key>
-            <string>string.template.head.ceylon</string>
+			<key>name</key>
+			<string>string.template.head.ceylon</string>
 
-            <key>patterns</key>
-            <array>
-                <dict>
-                    <key>match</key>
-                    <string>\\.</string>
-                    <key>name</key>
-                    <string>constant.character.escape.ceylon</string>
-                </dict>
-            </array>
-        </dict>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>match</key>
+					<string>\\.</string>
+					<key>name</key>
+					<string>constant.character.escape.ceylon</string>
+				</dict>
+			</array>
+		</dict>
 
-        <dict>
-            <key>begin</key>
-            <string>``</string>
+		<dict>
+			<key>begin</key>
+			<string>``</string>
 
-            <key>end</key>
-            <string>"|``</string>
+			<key>end</key>
+			<string>"|``</string>
 
-            <key>name</key>
-            <string>string.template.midOrtail.ceylon</string>
-        </dict>
+			<key>name</key>
+			<string>string.template.midOrtail.ceylon</string>
+		</dict>
 
 		<dict>
 			<!-- Binary -->

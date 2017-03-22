@@ -60,7 +60,8 @@ import java.util {
 import java.util.concurrent {
     CompletableFuture,
     ConcurrentSkipListSet,
-    CompletionException
+    CompletionException,
+    CancellationException
 }
 import java.util.concurrent.atomic {
     AtomicBoolean
@@ -776,6 +777,11 @@ class CeylonLanguageServer()
 
     shared actual
     void onError(variable Throwable? throwable) {
+        if (throwable is CancellationException) {
+            // ignore cancellations
+            return;
+        }
+
         "Does this exception wrap an error that has already been reported to the user?"
         variable Boolean isReportedException = false;
 

@@ -1,4 +1,4 @@
-import ceylon.markdown.core {
+import com.vasileff.ceylon.vscode.markdown.core {
 	Visitor,
 	BlockQuote,
 	Code,

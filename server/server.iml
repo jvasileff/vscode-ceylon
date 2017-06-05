@@ -19,32 +19,29 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.ast.core/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.buffer/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.collection/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.file/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.interop.java/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.json/1.3.0" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.ast.core/1.3.2-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.buffer/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.collection/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.file/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.interop.java/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.json/1.3.2" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.language/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.logging/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.markdown.core/1.0.0-vscode" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.cli/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.common/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.compiler.js/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.langtools.classfile/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.model/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.module-resolver/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.typechecker/1.3.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.vasileff.ceylon.dart.compiler/1.3.0-DP3" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.vasileff.ceylon.structures/1.0.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: io.typefox.lsapi:io.typefox.lsapi/0.4.0-SNAPSHOT" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: io.typefox.lsapi:io.typefox.lsapi.annotations/0.4.0-SNAPSHOT" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: io.typefox.lsapi:io.typefox.lsapi.services/0.4.0-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.logging/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: ceylon.markdown.core/1.0.2-vscode" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.cli/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.common/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.compiler.js/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.langtools.classfile/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.model/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.module-resolver/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.redhat.ceylon.typechecker/1.3.2" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.vasileff.ceylon.dart.compiler/1.3.2-DP5-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: com.vasileff.ceylon.structures/1.1.1" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: net.minidev.json-smart/1.1.1" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.antlr.antlr/2.7.7" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.antlr.runtime/3.4" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.antlr.stringtemplate/3.2.1" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.eclipse.xtend:org.eclipse.xtend.lib/2.10.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.eclipse.xtext:org.eclipse.xtext.xbase.lib/2.10.0" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.eclipse.lsp4j:org.eclipse.lsp4j/0.1.1" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Ceylon: org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc/0.1.1" level="project" />
   </component>
 </module>

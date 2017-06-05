@@ -14,7 +14,7 @@ module com.vasileff.ceylon.vscode "0.1.0" {
     import com.redhat.ceylon.compiler.js "1.3.2";
 
     shared import com.vasileff.ceylon.structures "1.1.1";
-    shared import com.vasileff.ceylon.dart.compiler "1.3.2-DP5-SNAPSHOT";
+    shared import com.vasileff.ceylon.dart.compiler "1.3.2-DP4";
 
     // ceylon.markdown.core is not in Herd
     shared import ceylon.markdown.core "1.0.2-vscode";

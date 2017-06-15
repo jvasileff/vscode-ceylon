@@ -126,10 +126,10 @@ void parseLine(variable String line, Block parent) {
 		line = "";
 	} else if (exists find = orderedListPattern.find(line)) {
 		
-		value startsWith = parseInteger(find.groups[0] else "0");
+		value startsWith = Integer.parse(find.groups[0] else "0");
 		
 		lineBlock = OrderedList {
-			startsWith = startsWith else 0;
+			startsWith = if (is Integer startsWith) then startsWith else 0;
 			delimeter = find.groups[0]?.get(0) else '.';
 		};
 		

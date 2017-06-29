@@ -83,7 +83,7 @@ shared interface CeylonLanguageServerContext satisfies ErrorListener {
         =>  switch (backend = ceylonSettings?.getStringOrNull("backend"))
             case ("dart") dartBackend
             case ("js") Backend.javaScript
-            else dartBackend;
+            else Backend.javaScript;
 
     shared formal variable Set<String> level1CompilingChangedDocumentIds;
     shared formal variable Set<String> level2CompilingChangedDocumentIds;

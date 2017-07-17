@@ -78,12 +78,26 @@ shared interface CeylonLanguageServerContext satisfies ErrorListener {
      a '/'."
     shared formal variable [String*] sourceDirectories;
 
+    shared String? getCeylonConfigOption(String option)
+        =>  if (exists prefix = configPrefix)
+            then baseCeylonConfig.getOption("``prefix``.``option``")
+            else null;
+
+    Backend? backendPerCeylonConfig
+        =>  if (exists be = getCeylonConfigOption("backend"))
+            then (switch (be)
+                case ("dart") dartBackend
+                case ("js") Backend.javaScript
+                else null)
+            else null;
+
     "The currently configured backend. Must be dart or js."
     shared Backend backend
         =>  switch (backend = ceylonSettings?.getStringOrNull("backend"))
             case ("dart") dartBackend
             case ("js") Backend.javaScript
-            else Backend.javaScript;
+            else (backendPerCeylonConfig
+                  else Backend.javaScript);
 
     shared formal variable Set<String> level1CompilingChangedDocumentIds;
     shared formal variable Set<String> level2CompilingChangedDocumentIds;
@@ -112,11 +126,16 @@ shared interface CeylonLanguageServerContext satisfies ErrorListener {
             else null;
 
     shared Boolean generateOutput
-        =>  ceylonSettings?.getBooleanOrNull("generateOutput") else false;
+        =>  ceylonSettings?.getBooleanOrNull("generateOutput")
+            else ((getCeylonConfigOption("generateOutput") else "false") == "true");
+
+    shared formal String? configPrefix;
+
+    CeylonConfig baseCeylonConfig
+        =>  CeylonConfig.createFromLocalDir(JFile(rootDirectory?.path?.string));
 
     shared CeylonConfig ceylonConfig {
-        value config
-            =   CeylonConfig.createFromLocalDir(JFile(rootDirectory?.path?.string));
+        value config = baseCeylonConfig;
 
         // FIXME WIP allow empty?
         value configSettings = ceylonSettings?.getObjectOrNull("config");

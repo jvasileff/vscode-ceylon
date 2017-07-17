@@ -31,12 +31,9 @@ shared void qr()
     =>  runApp(["55747", "trace"]);
 
 void runApp([String*] arguments) {
-    setLogPriority(arguments[1]);
+    value [port, priority, configPrefix] = parseArguments(arguments);
 
-    value port
-        =   if (exists port = arguments[0])
-            then Integer.parse(port)
-            else null;
+    setLogPriority(priority);
 
     if (!is Integer port) {
         log.fatal("error: no port specified");
@@ -47,11 +44,17 @@ void runApp([String*] arguments) {
     log.info("connected to parent using socket on port ``port``");
 
     value ceylonLanguageServer
-        =   LanguageServerWrapper(CeylonLanguageServer());
+        =   CeylonLanguageServer();
+
+    ceylonLanguageServer.configPrefix
+        =   configPrefix;
+
+    value languageServer
+        =   LanguageServerWrapper(ceylonLanguageServer);
 
     value launcher
         =   LSPLauncher.createServerLauncher(
-                ceylonLanguageServer,
+                languageServer,
                 socket.inputStream,
                 socket.outputStream,
                 Executors.newCachedThreadPool(),
@@ -84,4 +87,37 @@ void runApp([String*] arguments) {
     finally {
         log.info("run() finished");
     }
+}
+
+"Returns port, logPriority, and configPrefix"
+[Integer|ParseException?, String?, String?]
+        parseArguments([String*] arguments) {
+    // TODO proper CLI parsing
+    // For now,
+    //      - an optional --config-prefix x
+    //      - first bare args args are port and log priority
+    variable value nextIsCp = false;
+    variable String? configPrefix = null;
+    variable Integer|ParseException? port = null;
+    variable String? logPriority = null;
+    for (arg in arguments) {
+        if (nextIsCp) {
+            nextIsCp = false;
+            configPrefix = arg;
+        }
+        else if (arg == "--config-prefix") {
+            nextIsCp = true;
+            configPrefix = arg;
+        }
+        else if (!port exists) {
+            port = Integer.parse(arg);
+        }
+        else if (!logPriority exists) {
+            logPriority = arg;
+        }
+        else {
+            throw Exception("Too many arguments!");
+        }
+    }
+    return [port, logPriority, configPrefix];
 }

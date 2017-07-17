@@ -128,6 +128,7 @@ class CeylonLanguageServer()
 
     shared actual late LanguageClient languageClient;
     shared actual late Directory? rootDirectory;
+    shared actual variable String? configPrefix = null;
     shared actual variable JsonObject? settings = null;
     shared actual variable [String*] sourceDirectories = ["source/"];
 
@@ -174,6 +175,11 @@ class CeylonLanguageServer()
             value rootDirectory = rootPath.resource;
             if (is Directory rootDirectory) {
                 this.rootDirectory = rootDirectory;
+
+                // Set logging level based using setting from ~/.ceylon/config
+                if (exists level = getCeylonConfigOption("serverLogPriority")) {
+                    setLogPriority(level);
+                }
 
                 // Setup source directories. Note that initialize() is called before
                 // didChangeConfiguraton(), so it will take much more work to make

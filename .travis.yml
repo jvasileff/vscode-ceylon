@@ -16,7 +16,7 @@ install:
   - unzip -q /tmp/ceylon.zip
   - export PATH=$PATH:$PWD/ceylon-1.3.2/bin/
   - export CEYLON_HOME=$PWD/ceylon-1.3.2
-  - echo -e '\n[repository "s3"]\nurl=http://ceylon.vasileff.com/modules\n[repositories]\nremote=+s3' >> $TRAVIS_BUILD_DIR/server/.ceylon/config
+  - echo -e '\n[repository "s3"]\nurl=https://ceylon.vasileff.com/modules\n[repositories]\nremote=+s3' >> $TRAVIS_BUILD_DIR/server/.ceylon/config
 script:
   - cd server
   - ceylon compile --verbose=cmr

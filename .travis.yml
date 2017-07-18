@@ -19,7 +19,7 @@ install:
   - echo -e '\n[repository "s3"]\nurl=http://ceylon.vasileff.com/modules\n[repositories]\nremote=+s3' >> $TRAVIS_BUILD_DIR/server/.ceylon/config
 script:
   - cd server
-  - ceylon compile
+  - ceylon compile --verbose=cmr
 env:
   global:
     - CEYLON="http://ceylon-lang.org/download/dist/1_3_2"

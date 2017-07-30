@@ -62,11 +62,11 @@ export function activate(context: VSCode.ExtensionContext) {
                         return;
                     }
                     let version = stdout.trim().substring(15);
-                    if (!version.startsWith("1.3.2")) {
+                    if (!version.startsWith("1.3.3")) {
                         VSCode.window.showErrorMessage(
                             "Unsupported Ceylon version " + version + ". " +
                             "This version of the Ceylon Language VSCode Plugin " +
-                            "requires Ceylon 1.3.2 and may not function correctly.");
+                            "requires Ceylon 1.3.3 and may not function correctly.");
                     }
                 }));
 
@@ -84,7 +84,7 @@ export function activate(context: VSCode.ExtensionContext) {
                     '--rep', modules,
                     '--rep', "aether:" + settings,
                     '--auto-export-maven-dependencies',
-                    'com.vasileff.ceylon.vscode/0.1.0',
+                    'com.vasileff.ceylon.vscode/0.1.1-SNAPSHOT',
                     port.toString(),
                     VSCode.workspace
                         .getConfiguration("ceylon")

@@ -84,10 +84,7 @@ SignatureInfo getSignatureInfo(Declaration declaration)
             isAnnotation
                 =   declaration.annotation;
             typeParameters
-                =   if (is Generic declaration)
-                    then CeylonIterable(declaration.typeParameters)
-                            .collect((tp) => tp.name)
-                    else [];
+                =   CeylonIterable(declaration.typeParameters).collect((tp) => tp.name);
             parameterLists
                 =   if (is Functional declaration)
                     then CeylonIterable(declaration.parameterLists)

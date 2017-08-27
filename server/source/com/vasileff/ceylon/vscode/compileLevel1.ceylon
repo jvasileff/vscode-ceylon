@@ -5,9 +5,6 @@ import ceylon.interop.java {
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
-import com.vasileff.ceylon.dart.compiler {
-    ReportableException
-}
 import com.vasileff.ceylon.structures {
     ArrayListMultimap
 }

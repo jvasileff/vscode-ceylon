@@ -20,13 +20,9 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
-import com.vasileff.ceylon.dart.compiler {
-    compileDartSP,
-    dartBackend,
-    CompilationStatus
-}
 import com.vasileff.ceylon.vscode.compiler {
-    compileJS
+    compileJS,
+    CompilationStatus
 }
 
 import org.eclipse.lsp4j {
@@ -71,16 +67,7 @@ shared
     [Anything, CompilationStatus, [<TreeNode->Message>*],
     [Module*], [PhasedUnit*]] result;
 
-    if (backend == dartBackend) {
-        result = compileDartSP {
-            moduleFilters = moduleNamesToCompile;
-            virtualFiles = sourceVirtualFileFolders;
-            moduleCache = cacheWithoutModulesToCompile;
-            suppressWarning = suppressWarningsFromConfig(ceylonConfig);
-            outputRepositoryManager = outputRepositoryManager;
-        };
-    }
-    else if (backend == Backend.javaScript) {
+    if (backend == Backend.javaScript) {
         result = compileJS {
             moduleFilters = moduleNamesToCompile;
             virtualFiles = sourceVirtualFileFolders;

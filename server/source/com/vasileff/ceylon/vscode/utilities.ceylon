@@ -5,9 +5,6 @@ import com.redhat.ceylon.compiler.typechecker.context {
 import com.redhat.ceylon.cmr.ceylon {
     CeylonUtils
 }
-import com.vasileff.ceylon.dart.compiler {
-    Warning
-}
 import com.redhat.ceylon.model.typechecker.model {
     Module,
     ModuleImport
@@ -41,6 +38,9 @@ import java.lang {
 }
 import com.redhat.ceylon.common {
     Backend
+}
+import com.redhat.ceylon.compiler.typechecker.analyzer {
+    Warning
 }
 
 shared

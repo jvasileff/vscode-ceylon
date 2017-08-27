@@ -26,9 +26,6 @@ import com.redhat.ceylon.compiler.typechecker.context {
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
-import com.vasileff.ceylon.dart.compiler {
-    dartBackend
-}
 import com.vasileff.ceylon.structures {
     MutableMultimap
 }
@@ -86,7 +83,6 @@ shared interface CeylonLanguageServerContext satisfies ErrorListener {
     Backend? backendPerCeylonConfig
         =>  if (exists be = getCeylonConfigOption("backend"))
             then (switch (be)
-                case ("dart") dartBackend
                 case ("js") Backend.javaScript
                 else null)
             else null;
@@ -94,7 +90,6 @@ shared interface CeylonLanguageServerContext satisfies ErrorListener {
     "The currently configured backend. Must be dart or js."
     shared Backend backend
         =>  switch (backend = ceylonSettings?.getStringOrNull("backend"))
-            case ("dart") dartBackend
             case ("js") Backend.javaScript
             else (backendPerCeylonConfig
                   else Backend.javaScript);

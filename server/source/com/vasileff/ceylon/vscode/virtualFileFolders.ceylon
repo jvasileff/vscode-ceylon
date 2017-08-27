@@ -2,14 +2,12 @@ import ceylon.buffer.charset {
     utf8
 }
 import ceylon.interop.java {
-    createJavaByteArray
+    createJavaByteArray,
+    JavaList
 }
 
 import com.redhat.ceylon.compiler.typechecker.io {
     VirtualFile
-}
-import com.vasileff.ceylon.dart.compiler {
-    javaList
 }
 import com.vasileff.ceylon.structures {
     ArrayListMultimap,
@@ -49,7 +47,7 @@ shared
                 *listings.map((listing)
                     =>  let ([d, p, n] = pathParts(listing.key))
                         d -> object satisfies VirtualFile {
-                            children = javaList<VirtualFile> {};
+                            children = JavaList<VirtualFile>([]);
 
                             path = p;
 
@@ -112,11 +110,11 @@ shared
                 else null;
 
         children
-            =   javaList<VirtualFile> {
+            =   JavaList<VirtualFile> {
                     expand {
                         directories.get(path).map(DirectoryVirtualFile),
                         files.get(path)
-                    };
+                    }.sequence();
                 };
 
         compareTo(VirtualFile other)

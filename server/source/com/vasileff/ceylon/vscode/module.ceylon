@@ -15,7 +15,6 @@ module com.vasileff.ceylon.vscode "0.1.0" {
     import com.redhat.ceylon.compiler.js "1.3.2";
 
     shared import com.vasileff.ceylon.structures "1.1.1";
-    shared import com.vasileff.ceylon.dart.compiler "1.3.2-DP5-SNAPSHOT";
 
     shared import maven:"org.eclipse.lsp4j:org.eclipse.lsp4j" "0.1.1";
     shared import maven:"org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc" "0.1.1";

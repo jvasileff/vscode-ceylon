@@ -1,7 +1,8 @@
 import ceylon.interop.java {
     CeylonIterable,
     javaClass,
-    javaString
+    javaString,
+    JavaList
 }
 
 import com.redhat.ceylon.cmr.api {
@@ -11,7 +12,8 @@ import com.redhat.ceylon.compiler.typechecker {
     TypeCheckerBuilder
 }
 import com.redhat.ceylon.compiler.typechecker.analyzer {
-    ModuleSourceMapper
+    ModuleSourceMapper,
+    Warning
 }
 import com.redhat.ceylon.compiler.typechecker.context {
     PhasedUnit,
@@ -32,11 +34,6 @@ import com.redhat.ceylon.model.typechecker.context {
 }
 import com.redhat.ceylon.model.typechecker.model {
     ModuleModel=Module
-}
-import com.vasileff.ceylon.dart.compiler {
-    Warning,
-    CompilationStatus,
-    javaList
 }
 
 import java.io {
@@ -100,9 +97,9 @@ compileJS(
 
     virtualFiles.each((f) => builder.addSrcDirectory(f));
     sourceDirectories.each((f) => builder.addSrcDirectory(f));
-    builder.setSourceFiles(javaList(sourceFiles));
+    builder.setSourceFiles(JavaList(sourceFiles.sequence()));
     if (!moduleFilters.empty) {
-        builder.setModuleFilters(javaList(moduleFilters.map(javaString)));
+        builder.setModuleFilters(JavaList(moduleFilters.collect(javaString)));
     }
     builder.setRepositoryManager(repositoryManager);
 
@@ -133,7 +130,7 @@ compileJS(
     value suppressedWarnings
         =   EnumSet.noneOf(javaClass<Warning>());
 
-    suppressedWarnings.addAll(javaList(suppressWarning));
+    suppressedWarnings.addAll(JavaList(suppressWarning.sequence()));
 
     value warningSuppressionVisitor
         =   WarningSuppressionVisitor<Warning>(

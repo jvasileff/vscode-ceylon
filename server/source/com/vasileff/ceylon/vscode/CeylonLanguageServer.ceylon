@@ -36,9 +36,6 @@ import com.redhat.ceylon.model.typechecker.context {
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
-import com.vasileff.ceylon.dart.compiler {
-    ReportableException
-}
 import com.vasileff.ceylon.structures {
     ArrayListMultimap
 }
@@ -726,18 +723,6 @@ class CeylonLanguageServer()
         value p = PublishDiagnosticsParams();
         p.uri = toUri(documentId);
         p.diagnostics = JavaList<Diagnostic>([]);
-        languageClient.publishDiagnostics(p);
-    }
-
-    suppressWarnings("unusedDeclaration")
-    void compileAndPublishDiagnostics(String documentId, String documentText) {
-        value name = if (exists i = documentId.lastOccurrence('/'))
-                     then documentId[i+1...]
-                     else documentId;
-        value diagnostics = compileFile(name, documentText);
-        value p = PublishDiagnosticsParams();
-        p.uri = toUri(documentId);
-        p.diagnostics =JavaList(diagnostics);
         languageClient.publishDiagnostics(p);
     }
 
